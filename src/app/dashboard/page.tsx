@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [lkDisplayName, setLkDisplayName] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [hasSpeechApi, setHasSpeechApi] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const speechRef = useRef<SpeechRecognition | null>(null);
   const endAfterStopRef = useRef(false);
   const speechTextRef = useRef<string>("");
@@ -37,6 +38,8 @@ export default function DashboardPage() {
     const token = getAccessToken();
     if (!token && typeof window !== "undefined") {
       window.location.href = "/login";
+    } else {
+      setIsCheckingAuth(false);
     }
   }, []);
 
@@ -223,6 +226,17 @@ export default function DashboardPage() {
     // This effect is toggled off in the poll handler when content arrives
   }, [isAwaitingAnswer]);
 
+  // Show loading while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center page-gradient">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white/70">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-6 space-y-6 page-gradient">
