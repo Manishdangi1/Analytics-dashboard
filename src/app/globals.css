@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* Glass morphism helpers */
+.glass-fade-in {
+  animation: glassIn 400ms ease both;
+}
+
+@keyframes glassIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Modal / Chat popup animations */
+.modal-overlay-fade {
+  animation: overlayFade 180ms ease-out both;
+}
+
+@keyframes overlayFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Page gradient and subtle grid */
+.page-gradient {
+  position: relative;
+}
+.page-gradient:before {
+  content: "";
+  position: absolute;
+  inset: -20vh -10vw -10vh -10vw;
+  background: radial-gradient(60rem 40rem at 80% -10%, rgba(124, 58, 237, 0.18), transparent 60%),
+              radial-gradient(40rem 30rem at 0% 10%, rgba(14, 165, 233, 0.16), transparent 55%);
+  pointer-events: none;
+  filter: blur(10px);
+  z-index: -1;
+}
+
+/* Fade-in-up animation utility */
+.fade-in-up { animation: fadeInUp 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Shimmer skeleton */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Fancy gradient animation for buttons */
+.btn-gradient-animate {
+  background-size: 200% 200% !important;
+  animation: gradientShift 3s ease infinite;
+}
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Pressable micro-interaction */
+.pressable { transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease; }
+.pressable:hover { transform: translateY(-1px) scale(1.01); filter: saturate(1.05); }
+.pressable:active { transform: translateY(0px) scale(0.99); filter: saturate(0.98); }
+
+.chat-pop {
+  animation: chatPop 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: bottom right;
+}
+
+@keyframes chatPop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
