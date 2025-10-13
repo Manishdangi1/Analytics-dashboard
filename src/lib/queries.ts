@@ -43,7 +43,6 @@ export async function processQuery(payload: QueryRequest) {
     } catch {
       dataStr = String(err?.response?.data ?? "");
     }
-    // eslint-disable-next-line no-console
     console.error(`/process_query failed: ${status ?? ""} ${statusText ?? ""} ${dataStr}`);
     throw e;
   }
@@ -81,12 +80,12 @@ export async function listTranscripts(params?: operations["list_transcripts_tran
   const anyData = data as unknown as { items?: unknown[]; transcripts?: unknown[]; results?: unknown[] } | unknown[] | Record<string, unknown>;
   const list: unknown[] = Array.isArray(anyData)
     ? anyData
-    : Array.isArray((anyData as any)?.items)
-    ? (anyData as any).items
-    : Array.isArray((anyData as any)?.transcripts)
-    ? (anyData as any).transcripts
-    : Array.isArray((anyData as any)?.results)
-    ? (anyData as any).results
+    : Array.isArray((anyData as Record<string, unknown>)?.items)
+    ? (anyData as Record<string, unknown>).items as unknown[]
+    : Array.isArray((anyData as Record<string, unknown>)?.transcripts)
+    ? (anyData as Record<string, unknown>).transcripts as unknown[]
+    : Array.isArray((anyData as Record<string, unknown>)?.results)
+    ? (anyData as Record<string, unknown>).results as unknown[]
     : anyData && typeof anyData === "object"
     ? Object.values(anyData as Record<string, unknown>)
     : [];

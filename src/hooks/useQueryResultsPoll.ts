@@ -19,7 +19,7 @@ export function useQueryResultsPoll() {
         const bundle = await pollQueryResults();
         if (!mounted) return;
         if (bundle?.status === "ready") {
-          const currentId = (bundle as any).chat_id || `${bundle.transcript_id}:${(bundle as any).chat_id_user}`;
+          const currentId = (bundle as Record<string, unknown>).chat_id as string || `${bundle.transcript_id}:${(bundle as Record<string, unknown>).chat_id_user as string}`;
           if (currentId && seenChatIdRef.current === currentId) return;
           seenChatIdRef.current = currentId ?? null;
           setLastReady(bundle);

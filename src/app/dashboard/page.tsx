@@ -1,7 +1,7 @@
 "use client";
-import { listDashboardGraphs, processQuery, getTranscript, updateTranscript, listTranscripts, deleteTranscript, livekitCreateSession, livekitEndSession, livekitQuery } from "@/lib/queries";
+import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, livekitCreateSession, livekitEndSession, livekitQuery } from "@/lib/queries";
 import { extractTranscriptId } from "@/lib/ids";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryResultsPoll } from "@/hooks/useQueryResultsPoll";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { HTMLRender } from "@/components/ui/HTMLRender";
@@ -21,7 +21,6 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
-  const [transcriptTitle, setTranscriptTitle] = useState("");
   const [gridCols, setGridCols] = useState<1 | 2 | 3>(2);
   const [expandedGraph, setExpandedGraph] = useState<DashboardGraph | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -29,7 +28,7 @@ export default function DashboardPage() {
   const [lkDisplayName, setLkDisplayName] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [hasSpeechApi, setHasSpeechApi] = useState(false);
-  const speechRef = useRef<any>(null);
+  const speechRef = useRef<SpeechRecognition | null>(null);
   const endAfterStopRef = useRef(false);
   const speechTextRef = useRef<string>("");
 
@@ -44,7 +43,7 @@ export default function DashboardPage() {
   // Simple beep for UX
   function playBeep(frequency = 880, durationMs = 120, volume = 0.06) {
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
@@ -57,17 +56,62 @@ export default function DashboardPage() {
     } catch {}
   }
 
+  const [isSending, setIsSending] = useState(false);
+  const sendQuestion = useCallback(async (q: string) => {
+    setIsSending(true);
+    try {
+      const res = await processQuery({ natural_language_query: q, transcript_id: transcriptId ?? undefined });
+      if (!transcriptId && res?.transcript_id) {
+        const tid = res.transcript_id as string;
+        setTranscriptId(tid);
+        setDashboardTranscriptId(tid);
+      }
+    } catch (e) {
+      const err = e as { message?: string; response?: { status?: number; statusText?: string; data?: unknown } };
+      let message = "Request failed. Please try again.";
+      const status = err?.response?.status;
+      const statusText = err?.response?.statusText;
+      const data = err?.response?.data as unknown;
+      const fromDetailArray = Array.isArray((data as Record<string, unknown>)?.detail)
+        ? ((data as Record<string, unknown>).detail as Array<{ msg?: string } | string>).map((d) => (typeof d === 'object' ? d?.msg : d) || d).join("; ")
+        : null;
+      const fromDetail = typeof (data as Record<string, unknown>)?.detail === "string" ? (data as Record<string, unknown>).detail as string : fromDetailArray;
+      const fromMessage = (data as Record<string, unknown>)?.message as string | undefined;
+      const fromError = (data as Record<string, unknown>)?.error as string | undefined;
+      if (fromDetail || fromMessage || fromError) {
+        message = fromDetail || fromMessage || fromError || message;
+      } else if (status) {
+        message = `HTTP ${status}${statusText ? ` ${statusText}` : ""}`;
+      } else if (err?.message) {
+        message = err.message;
+      }
+      const notFound = typeof fromDetail === "string" && fromDetail.toLowerCase().includes("transcript not found");
+      if (notFound) {
+        setTranscriptId(null);
+        clearDashboardTranscriptId();
+        message = "Previous chat was removed. Starting a new session—please resend your question.";
+      } else if (status === 500 && !fromMessage && !fromDetail && !fromError) {
+        message = "Server error (500). Please try again or contact support.";
+      }
+      console.error("processQuery failed", e);
+      setError(message);
+      setIsAwaitingAnswer(false);
+    } finally {
+      setIsSending(false);
+    }
+  }, [transcriptId]);
+
   // Initialize SpeechRecognition if available
   useEffect(() => {
-    const SR: typeof window.SpeechRecognition | undefined = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SR: typeof window.SpeechRecognition | undefined = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SR) {
       setHasSpeechApi(true);
-      const rec = new (SR as any)();
+      const rec = new SR();
       rec.continuous = false;
       rec.lang = "en-US";
       rec.interimResults = true;
       rec.maxAlternatives = 1;
-      rec.onresult = (event: any) => {
+      rec.onresult = (event: SpeechRecognitionEvent) => {
         let interim = "";
         let finalText = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -113,16 +157,16 @@ export default function DashboardPage() {
           endAfterStopRef.current = false;
         }
       };
-      speechRef.current = rec as any;
+      speechRef.current = rec;
     }
-  }, [lkSessionId, question]);
+  }, [lkSessionId, question, sendQuestion]);
   const [graphs, setGraphs] = useState<DashboardGraph[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   async function loadGraphs() {
     setIsFetching(true);
     try {
       const res = await listDashboardGraphs({ active_only: true });
-      setGraphs((res as any)?.graphs ?? []);
+      setGraphs(res?.graphs ?? []);
     } finally {
       setIsFetching(false);
     }
@@ -130,52 +174,6 @@ export default function DashboardPage() {
   useEffect(() => {
     loadGraphs();
   }, []);
-
-  const [isSending, setIsSending] = useState(false);
-  async function sendQuestion(q: string) {
-    setIsSending(true);
-    try {
-      const res = await processQuery({ natural_language_query: q, transcript_id: transcriptId ?? undefined });
-      if (!transcriptId && (res as any)?.transcript_id) {
-        const tid = (res as any).transcript_id as string;
-        setTranscriptId(tid);
-        setDashboardTranscriptId(tid);
-      }
-    } catch (e) {
-      const err = e as { message?: string; response?: { status?: number; statusText?: string; data?: unknown } };
-      let message = "Request failed. Please try again.";
-      const status = err?.response?.status;
-      const statusText = err?.response?.statusText;
-      const data = err?.response?.data as unknown;
-      const fromDetailArray = Array.isArray((data as any)?.detail)
-        ? (data as any).detail.map((d: any) => d?.msg || d).join("; ")
-        : null;
-      const fromDetail = typeof (data as any)?.detail === "string" ? (data as any).detail : fromDetailArray;
-      const fromMessage = (data as any)?.message as string | undefined;
-      const fromError = (data as any)?.error as string | undefined;
-      if (fromDetail || fromMessage || fromError) {
-        message = fromDetail || fromMessage || fromError || message;
-      } else if (status) {
-        message = `HTTP ${status}${statusText ? ` ${statusText}` : ""}`;
-      } else if (err?.message) {
-        message = err.message;
-      }
-      const notFound = typeof fromDetail === "string" && fromDetail.toLowerCase().includes("transcript not found");
-      if (notFound) {
-        setTranscriptId(null);
-        clearDashboardTranscriptId();
-        message = "Previous chat was removed. Starting a new session—please resend your question.";
-      } else if (status === 500 && !fromMessage && !fromDetail && !fromError) {
-        message = "Server error (500). Please try again or contact support.";
-      }
-      // eslint-disable-next-line no-console
-      console.error("processQuery failed", e);
-      setError(message);
-      setIsAwaitingAnswer(false);
-    } finally {
-      setIsSending(false);
-    }
-  }
 
   async function onAsk(e: React.FormEvent) {
     e.preventDefault();
@@ -211,7 +209,7 @@ export default function DashboardPage() {
       setChat((prev) => [...prev, { role: "assistant", text: hasDescription ? description : undefined, graphs: hasGraphs ? filteredGraphs : undefined }]);
       setIsAwaitingAnswer(false);
     }
-  }, [poll.lastReady]);
+  }, [poll.lastReady, transcriptId]);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -225,24 +223,6 @@ export default function DashboardPage() {
     // This effect is toggled off in the poll handler when content arrives
   }, [isAwaitingAnswer]);
 
-  // Load transcript title when transcriptId becomes available
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      if (!transcriptId) return;
-      try {
-        const t = await getTranscript(transcriptId);
-        const title = (t as { title?: string | null })?.title ?? "";
-        if (active) setTranscriptTitle(title);
-      } catch {
-        // ignore
-      }
-    }
-    load();
-    return () => {
-      active = false;
-    };
-  }, [transcriptId]);
 
   return (
     <div className="min-h-screen p-6 space-y-6 page-gradient">
@@ -353,10 +333,9 @@ export default function DashboardPage() {
                       />
                       <TranscriptSelect
                         activeTranscriptId={transcriptId}
-                        onSelect={(id, title) => {
+                        onSelect={(id) => {
                           setTranscriptId(id);
                           setDashboardTranscriptId(id);
-                          setTranscriptTitle(title ?? "");
                           setChat([]);
                         }}
                       />
@@ -365,7 +344,6 @@ export default function DashboardPage() {
                         setTranscriptId(null);
                         clearDashboardTranscriptId();
                         setError(null);
-                        setTranscriptTitle("");
                       }} />
                     </div>
                   </div>
@@ -386,10 +364,9 @@ export default function DashboardPage() {
                   <ChatHistoryPanel
                     onClose={() => setIsHistoryOpen(false)}
                     activeTranscriptId={transcriptId}
-                    onSelect={async (id, title) => {
+                    onSelect={async (id) => {
                       setTranscriptId(id);
                       setDashboardTranscriptId(id);
-                      setTranscriptTitle(title ?? "");
                       setChat([]);
                       setIsHistoryOpen(false);
                     }}
@@ -398,7 +375,6 @@ export default function DashboardPage() {
                       if (transcriptId === id) {
                         setTranscriptId(null);
                         clearDashboardTranscriptId();
-                        setTranscriptTitle("");
                         setChat([]);
                       }
                     }}

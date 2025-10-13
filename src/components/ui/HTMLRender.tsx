@@ -13,7 +13,7 @@ export function HTMLRender({ html, className = "", height }: { html: string; cla
     if (!iframe) return;
     function adjust() {
       try {
-        const doc = iframe.contentDocument;
+        const doc = iframe?.contentDocument;
         const body = doc?.body;
         const root = doc?.documentElement;
         const contentHeight = Math.max(
@@ -25,7 +25,9 @@ export function HTMLRender({ html, className = "", height }: { html: string; cla
         );
         if (contentHeight) {
           const min = typeof height === "number" ? height : 0;
-          iframe.style.height = Math.max(contentHeight, min) + "px";
+          if (iframe?.style) {
+            iframe.style.height = Math.max(contentHeight, min) + "px";
+          }
         }
       } catch {}
     }
