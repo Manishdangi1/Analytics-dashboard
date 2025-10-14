@@ -1,15 +1,19 @@
 "use client";
-import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, livekitQuery } from "@/lib/queries";
+import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, livekitQuery, authMe } from "@/lib/queries";
 import { extractTranscriptId } from "@/lib/ids";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryResultsPoll } from "@/hooks/useQueryResultsPoll";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { HTMLRender } from "@/components/ui/HTMLRender";
+import ChartRenderer from "@/components/ui/ChartRenderer";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import ErrorNotification from "@/components/ui/ErrorNotification";
 import PinButton from "@/components/PinButton";
 import UnpinButton from "@/components/UnpinButton";
+import VoiceChat from "@/components/VoiceChat";
 import type { components } from "@/types/api";
 import { getDashboardTranscriptId, setDashboardTranscriptId, clearDashboardTranscriptId } from "@/lib/dashboardSession";
-import { getAccessToken } from "@/lib/auth";
+import { getAccessToken, clearAccessToken } from "@/lib/auth";
 
 type GraphItem = components["schemas"]["GraphItem"];
 type DashboardGraph = components["schemas"]["DashboardGraphMetadataModel"];
@@ -17,9 +21,8 @@ type DashboardGraph = components["schemas"]["DashboardGraphMetadataModel"];
 export default function DashboardPage() {
   const [question, setQuestion] = useState("");
   const [transcriptId, setTranscriptId] = useState<string | null>(getDashboardTranscriptId());
-  const [chat, setChat] = useState<Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[] }>>([]);
+  const [chat, setChat] = useState<Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[]; userQuestion?: string }>>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
   const [gridCols, setGridCols] = useState<1 | 2 | 3>(2);
   const [expandedGraph, setExpandedGraph] = useState<DashboardGraph | null>(null);
@@ -31,6 +34,12 @@ export default function DashboardPage() {
   const ignoreResponsesRef = useRef(false);
   const scrollLockYRef = useRef(0);
   const [chatKey, setChatKey] = useState(0);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  const [responseAdded, setResponseAdded] = useState(false);
+  const [currentUserQuestion, setCurrentUserQuestion] = useState<string | null>(null);
   
   // Local chat persistence per transcript
   function chatStorageKey(tid: string) { return `chat_history:${tid}`; }
@@ -48,8 +57,9 @@ export default function DashboardPage() {
   const saveChatToStorage = useCallback((tid: string, items: Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[] }>) => {
     try {
       localStorage.setItem(chatStorageKey(tid), JSON.stringify(items.slice(-200)));
-    } catch {}
+    } catch {    }
   }, []);
+
 
   function showSuccess(text: string) {
     setNotice({ text, type: "success" });
@@ -69,54 +79,98 @@ export default function DashboardPage() {
     saveChatToStorage(transcriptId, chat);
   }, [chat, transcriptId, saveChatToStorage]);
 
-  // Prevent background scroll when chat is open (mobile fix)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const body = document.body as HTMLBodyElement;
-    const html = document.documentElement as HTMLElement;
-    if (isChatOpen) {
-      scrollLockYRef.current = window.scrollY || window.pageYOffset || 0;
-      html.style.overscrollBehavior = "none";
-      html.style.overflow = "hidden";
-      body.style.position = "fixed";
-      body.style.top = `-${scrollLockYRef.current}px`;
-      body.style.width = "100%";
-      body.style.overflow = "hidden";
-    } else {
-      html.style.overflow = "";
-      html.style.overscrollBehavior = "";
-      const y = Math.abs(parseInt(body.style.top || "0", 10)) || 0;
-      body.style.position = "";
-      body.style.top = "";
-      body.style.width = "";
-      body.style.overflow = "";
-      if (y) window.scrollTo(0, y);
-    }
-    return () => {
-      html.style.overflow = "";
-      html.style.overscrollBehavior = "";
-      const y = Math.abs(parseInt(body.style.top || "0", 10)) || 0;
-      body.style.position = "";
-      body.style.top = "";
-      body.style.width = "";
-      body.style.overflow = "";
-      if (y) window.scrollTo(0, y);
-    };
-  }, [isChatOpen]);
 
-  // Require login for dashboard
+  // Require login for dashboard and fetch user data
   useEffect(() => {
     const token = getAccessToken();
     if (!token && typeof window !== "undefined") {
       window.location.href = "/login";
     } else {
-      setIsCheckingAuth(false);
+      // Show stored email immediately while API call is in progress
+      const storedEmail = localStorage.getItem("user_email");
+      if (storedEmail) {
+        setUserEmail(storedEmail);
+        setUserName(storedEmail);
+      }
+      
+      // Fetch real user data from API with timeout
+      const fetchUserData = async () => {
+        try {
+          
+          // Add timeout to prevent infinite loading
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("API timeout")), 3000)
+          );
+          
+          const userData = await Promise.race([authMe(), timeoutPromise]);
+          // Extract user information from API response
+          // The API returns user data nested under 'user' property
+          const user = (userData as any)?.user;
+          const email = user?.email;
+          const name = user?.name;
+          const displayName = user?.display_name;
+          
+          // Set user data
+          if (email) {
+            setUserEmail(email);
+            // Store email in localStorage for future use
+            localStorage.setItem("user_email", email);
+          }
+          
+          // Use display_name, name, or email as the display name
+          const finalName = displayName || name || email || "User";
+          setUserName(finalName);
+          
+          // Also set userEmail for consistency
+          if (email) {
+            setUserEmail(email);
+          }
+          
+        } catch (error) {
+          console.error("Failed to fetch user data:", error);
+          // If API fails and we don't have stored data, set a fallback
+          if (!userName && !userEmail) {
+            setUserName("User");
+            setUserEmail("user@indus.com");
+          }
+        } finally {
+          setIsLoadingUser(false);
+          setIsCheckingAuth(false);
+        }
+      };
+      
+      fetchUserData();
     }
   }, []);
 
 
   const [isSending, setIsSending] = useState(false);
   const [isFirstQuestion, setIsFirstQuestion] = useState(false);
+
+  // Voice chat handlers
+  const handleVoiceTranscript = useCallback((text: string) => {
+    if (text.trim()) {
+      setQuestion(text);
+      setCurrentUserQuestion(text.trim());
+      // Auto-send voice transcript
+      setTimeout(() => {
+        if (text.trim()) {
+          setChat((prev) => [...prev, { role: "user", text: text.trim() }]);
+          sendQuestion(text.trim());
+          setQuestion("");
+          setIsAwaitingAnswer(true);
+        }
+      }, 500);
+    }
+  }, []);
+
+  const handleVoiceError = useCallback((error: string) => {
+    setError(error);
+  }, []);
+
+  const toggleVoiceChat = useCallback(() => {
+    setIsVoiceEnabled(!isVoiceEnabled);
+  }, [isVoiceEnabled]);
   const sendQuestion = useCallback(async (q: string) => {
     ignoreResponsesRef.current = false;
     setIsSending(true);
@@ -205,6 +259,7 @@ export default function DashboardPage() {
       setError("Please enter a more descriptive question.");
       return;
     }
+    setCurrentUserQuestion(q);
     setChat((prev) => [...prev, { role: "user", text: q }]);
     setError(null);
     sendQuestion(q);
@@ -233,12 +288,12 @@ export default function DashboardPage() {
     const hasGraphs = filteredGraphs.length > 0;
     if (hasDescription || hasGraphs) {
       console.log('Adding response to chat:', { hasDescription, hasGraphs, transcriptId });
-      // Stop loader first
-      setIsAwaitingAnswer(false);
-      // Add response with a small delay to show loader stopping before response
-      setTimeout(() => {
-        setChat((prev) => [...prev, { role: "assistant", text: hasDescription ? description : undefined, graphs: hasGraphs ? filteredGraphs : undefined }]);
-      }, 100);
+      // Add response first
+      setChat((prev) => [...prev, { role: "assistant", text: hasDescription ? description : undefined, graphs: hasGraphs ? filteredGraphs : undefined, userQuestion: currentUserQuestion || undefined }]);
+      // Mark that response was added
+      setResponseAdded(true);
+      // Clear the current user question
+      setCurrentUserQuestion(null);
     } else {
       // No content returned; stop spinner to avoid hanging UI
       setIsAwaitingAnswer(false);
@@ -255,6 +310,19 @@ export default function DashboardPage() {
     }
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [chat]);
+
+  // Stop loader when response is actually rendered
+  useEffect(() => {
+    if (responseAdded && isAwaitingAnswer) {
+      // Wait for the response to be fully rendered before stopping the loader
+      const timer = setTimeout(() => {
+        setIsAwaitingAnswer(false);
+        setResponseAdded(false);
+      }, 500); // Give enough time for complex graphs to render
+      
+      return () => clearTimeout(timer);
+    }
+  }, [responseAdded, isAwaitingAnswer]);
 
   // Audible chime on assistant response
   useEffect(() => {
@@ -275,638 +343,604 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="h-screen page-gradient overflow-hidden flex flex-col">
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-      {notice && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60]">
-          <div className="glass-fade-in inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm text-emerald-200 ring-1 ring-emerald-400/20 shadow">
-            <span>✅</span>
-            <span>{notice.text}</span>
-          </div>
-        </div>
-      )}
-      <div className="flex items-center justify-between gap-4 fade-in-up">
-        <h1 className="text-3xl font-bold tracking-tight indus-text-gradient">Dashboard</h1>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1 text-xs">
-            <span className="text-neutral-400">Grid</span>
-            <button
-              type="button"
-              onClick={() => setGridCols(1)}
-              className={
-                "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
-                (gridCols === 1 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
-              }
-              title="1 column"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                <rect x="3" y="5" width="14" height="10" rx="2" className="fill-current opacity-90" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setGridCols(2)}
-              className={
-                "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
-                (gridCols === 2 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
-              }
-              title="2 columns"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" className="w-5 h-5">
-                <rect x="3" y="5" width="6" height="10" rx="2" className="fill-current opacity-90" />
-                <rect x="11" y="5" width="6" height="10" rx="2" className="fill-current opacity-60" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setGridCols(3)}
-              className={
-                "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
-                (gridCols === 3 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
-              }
-              title="3 columns"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" className="w-5 h-5">
-                <rect x="2.5" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-90" />
-                <rect x="7.75" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-75" />
-                <rect x="13" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-60" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Floating Chat Button */}
-      {!isChatOpen && (
-        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50">
-          <div className="absolute -inset-1 md:-inset-2 rounded-full bg-gradient-to-r from-primary/30 to-accent/30 blur-md md:blur-lg animate-pulse" />
-          <button
-            type="button"
-            onClick={() => setIsChatOpen(true)}
-            aria-label="Open chat"
-            title="Open chat"
-            className="relative inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full indus-button-primary ring-1 ring-white/20 shadow-xl pressable indus-glow"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 md:w-6 md:h-6 text-white">
-              <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
-            </svg>
-          </button>
-      </div>
-      )}
-
-      {/* Chat Popup Modal */}
-      {isChatOpen && (
-        <div className="fixed inset-0 z-50" onClick={() => setIsChatOpen(false)}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay-fade" />
-          <div className="absolute inset-0 md:inset-auto md:bottom-6 md:right-6 md:left-auto md:w-[94vw] md:max-w-4xl chat-pop flex items-end md:block" onClick={(e) => e.stopPropagation()}>
-            <Card className="bg-neutral-900 border border-white/10 shadow-2xl rounded-t-2xl md:rounded-2xl h-[95dvh] md:h-auto md:max-h-[90vh] overflow-hidden flex flex-col w-full mt-2">
-              <CardHeader className="bg-white/5 sticky top-0 z-10">
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-3 w-full">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full indus-button-primary text-white shadow indus-glow">
-                      💬
-                    </span>
-                    <span className="font-semibold text-lg tracking-tight indus-text-gradient">Chat</span>
-                    <div className="ml-auto hidden md:flex items-center gap-2">
-                      <TranscriptSelect
-                        activeTranscriptId={transcriptId}
-                        onSelect={(id) => {
-                          setTranscriptId(id);
-                          setDashboardTranscriptId(id);
-                          const saved = loadChatFromStorage(id);
-                          setChat(Array.isArray(saved) ? saved : []);
-                          setIsFirstQuestion(false); // Reset first question flag when switching transcripts
-                          setChatKey(prev => prev + 1); // Force re-render
-                          setIsChatOpen(true);
-                        }}
-                      />
-                      <NewChatButton onNew={async () => {
-                        try {
-                          // Create a new transcript
-                          const newTranscript = await createTranscript({
-                            title: "New Chat",
-                            metadata: {
-                              created_at: new Date().toISOString(),
-                              source: 'dashboard'
-                            }
-                          });
-                          
-                          // Extract transcript ID from response
-                          const newTranscriptId = (newTranscript as { transcript_id?: string; id?: string })?.transcript_id || (newTranscript as { transcript_id?: string; id?: string })?.id;
-                          
-                          if (newTranscriptId && typeof newTranscriptId === 'string') {
-                            // Clear all chat-related state
-                            setChat([]);
-                            setTranscriptId(newTranscriptId);
-                            setDashboardTranscriptId(newTranscriptId);
-                            setError(null);
-                            ignoreResponsesRef.current = false; // Allow new responses
-                            setIsAwaitingAnswer(false);
-                            setIsFirstQuestion(true); // Mark as first question for new transcript
-                            setChatKey(prev => prev + 1); // Force re-render
-                            
-                            // Force scroll to top of messages
-                            setTimeout(() => {
-                              if (messagesRef.current) {
-                                messagesRef.current.scrollTop = 0;
-                              }
-                            }, 0);
-                            
-                            showSuccess("New chat started");
-                            
-                            // Refresh transcript list
-                            if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
-                              (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
-                            }
-                          } else {
-                            throw new Error("Failed to create transcript");
-                          }
-                        } catch (error) {
-                          console.error("Failed to create new transcript:", error);
-                          setError("Failed to create new chat. Please try again.");
-                        }
-                      }} />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* History toggle */}
-                    <button
-                      type="button"
-                      onClick={() => setIsHistoryOpen((v) => !v)}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-xs hover:bg-white/12 pressable"
-                      title="Chat history"
-                    >
-                      History
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsChatOpen(false)}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded border border-white/10 hover:bg-white/10"
-                      aria-label="Close chat"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-        </CardHeader>
-        <CardContent className="flex-1 flex flex-col min-h-0">
-                {isHistoryOpen && (
-                  <ChatHistoryPanel
-                    onClose={() => setIsHistoryOpen(false)}
-                    activeTranscriptId={transcriptId}
-                    onSelect={async (id) => {
-                      setTranscriptId(id);
-                      setDashboardTranscriptId(id);
-                      const saved = loadChatFromStorage(id);
-                      setChat(Array.isArray(saved) ? saved : []);
-                      setIsFirstQuestion(false); // Reset first question flag when switching transcripts
-                      setChatKey(prev => prev + 1); // Force re-render
-                      setIsHistoryOpen(false);
-                      setIsChatOpen(true);
-                    }}
-                    onDelete={async (id) => {
-                      await deleteTranscript(id);
-                      if (transcriptId === id) {
-                        setTranscriptId(null);
-                        clearDashboardTranscriptId();
-                        setChat([]);
-                      }
-                      // Refresh dropdown after deletion
-                      if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
-                        (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
-                      }
-                    }}
-                  />
-                )}
-                <div key={chatKey} ref={messagesRef} className="flex-1 space-y-4 overflow-y-auto pr-1 text-[15px] leading-6 sm:leading-7 min-h-0">
-                  {chat.length === 0 && (
-                    <div className="space-y-3">
-                      <p className="text-neutral-300">Start by asking a question about your data.</p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const q = "what is the employee distribution across departments";
-                            setChat((prev) => [...prev, { role: "user", text: q }]);
-                            setError(null);
-                            sendQuestion(q);
-                            setQuestion("");
-                            setIsAwaitingAnswer(true);
-                          }}
-                          className="pressable inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
-                        >
-                          What is the employee distribution across departments
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const q = "what were the sales this year";
-                            setChat((prev) => [...prev, { role: "user", text: q }]);
-                            setError(null);
-                            sendQuestion(q);
-                            setQuestion("");
-                            setIsAwaitingAnswer(true);
-                          }}
-                          className="pressable inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
-                        >
-                          What were the sales this year
-                        </button>
-                      </div>
-                    </div>
-                  )}
-            {chat.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "text-right" : "text-left"}>
-                {m.text && (
-                        <div className={
-                          "inline-block max-w-[80ch] md:max-w-[65ch] rounded-2xl px-4 py-2 shadow whitespace-pre-wrap leading-7 break-words " +
-                          (m.role === "user"
-                            ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white ring-1 ring-white/10"
-                            : "bg-slate-900 text-slate-100 ring-1 ring-slate-300/15 shadow-xl"
-                          )}>
-                          {m.text}
-                        </div>
-                )}
-                {m.graphs && m.graphs.length > 0 && (
-                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {m.graphs
-                            .filter((g) => g.html || g.figure)
-                            .map((g, gi) => (
-                              <div key={gi} className="rounded-xl border border-sky-400/20 bg-sky-950/40 p-3 space-y-2 shadow ring-1 ring-sky-400/10">
-                        <div className="flex items-center justify-end">
-                          <PinButton
-                            title={g.title ?? null}
-                            figure={g.figure}
-                            html={g.html ?? null}
-                            graph_type={g.graph_type ?? null}
-                            onPinned={() => {
-                              // Reload graphs list without full page refresh
-                              (async () => {
-                                try {
-                                  const res = await listDashboardGraphs({ active_only: true });
-                                  setGraphs(res?.graphs ?? []);
-                                } catch {}
-                              })();
-                              showSuccess("Pinned to dashboard");
-                            }}
-                          />
-                        </div>
-                        {g.html ? (
-                                  <HTMLRender html={g.html} height={480} className="border-sky-400/20" />
-                        ) : (
-                                  <p className="text-sm text-sky-200/80">Visualization available.</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+    <ErrorBoundary>
+      <div className="h-screen page-gradient overflow-hidden flex flex-col lg:flex-row">
+      {/* Main Content Area - Left Side */}
+      <div className="flex-1 flex flex-col lg:max-w-[calc(100%-600px)]">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {notice && (
+            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60]">
+              <div className="glass-fade-in inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm text-emerald-200 ring-1 ring-emerald-400/20 shadow">
+                <span>✅</span>
+                <span>{notice.text}</span>
               </div>
-            ))}
-                  {isAwaitingAnswer && (
-                    <div className="flex items-center gap-3">
-                      <div className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 bg-neutral-900 text-neutral-100 ring-1 ring-white/10 shadow-xl">
-                        <span className="inline-block w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                        <span>Thinking…</span>
+            </div>
+          )}
+          
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 fade-in-up">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-r from-primary to-accent flex items-center justify-center indus-glow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 sm:w-6 sm:h-6 text-white">
+                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight indus-text-gradient">Analytics Dashboard</h1>
+                <p className="text-neutral-400 text-sm hidden sm:block">Real-time insights and data visualizations</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {/* Grid Controls */}
+              <div className="hidden sm:flex items-center gap-1 text-xs">
+                <span className="text-neutral-400">Layout</span>
+                <button
+                  type="button"
+                  onClick={() => setGridCols(1)}
+                  className={
+                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
+                    (gridCols === 1 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
+                  }
+                  title="1 column"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                    <rect x="3" y="5" width="14" height="10" rx="2" className="fill-current opacity-90" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGridCols(2)}
+                  className={
+                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
+                    (gridCols === 2 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
+                  }
+                  title="2 columns"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" className="w-5 h-5">
+                    <rect x="3" y="5" width="6" height="10" rx="2" className="fill-current opacity-90" />
+                    <rect x="11" y="5" width="6" height="10" rx="2" className="fill-current opacity-60" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGridCols(3)}
+                  className={
+                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
+                    (gridCols === 3 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
+                  }
+                  title="3 columns"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" className="w-5 h-5">
+                    <rect x="2.5" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-90" />
+                    <rect x="7.75" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-75" />
+                    <rect x="13" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-60" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* User Info and Actions */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-2 indus-card rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
+                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-sm text-white font-medium">
+                    {isLoadingUser ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 border border-white/30 border-t-transparent rounded-full animate-spin" />
+                        <span>Loading...</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          ignoreResponsesRef.current = true;
-                          setIsAwaitingAnswer(false);
-                        }}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
-                        title="Stop waiting for this response"
-                      >
-                        Stop
-                      </button>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
+                    ) : (
+                      userName || userEmail || "User"
+                    )}
+                  </span>
                 </div>
-                {/* Sticky input form at bottom */}
-                <div className="sticky bottom-0 bg-neutral-900 border-t border-white/10 p-4 -mx-4 -mb-4">
-                  <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (lkSessionId) {
-                      const q = question.trim();
-                      if (!q) return;
-                      setChat((prev) => [...prev, { role: "user", text: q }]);
-                      setQuestion("");
-                      try {
-                        setIsAwaitingAnswer(true);
-                        await livekitQuery(lkSessionId, { question: q, context: null });
-                      } catch (err) {
-                        const msg = (err as { message?: string })?.message || "Voice query failed.";
-                        setError(msg);
-                        setIsAwaitingAnswer(false);
-                      }
-                      return;
+                <button
+                  onClick={() => {
+                    clearAccessToken();
+                    if (typeof window !== "undefined") window.location.href = "/login";
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 indus-card rounded-lg hover:bg-white/10 transition-all pressable"
+                  title="Logout"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-neutral-400">
+                    <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm text-neutral-400">Logout</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+
+          {/* Dashboard Graphs Grid */}
+          <div className="fade-in-up">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-white">Visualizations</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={loadGraphs}
+                  disabled={isFetching}
+                  className="flex items-center gap-2 px-3 py-2 text-sm indus-card rounded-lg hover:bg-white/10 transition-all pressable disabled:opacity-50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`}>
+                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+            </div>
+            
+            {graphs.length === 0 ? (
+              <div className="indus-card p-12 text-center">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-10 h-10 text-primary">
+                    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">No Visualizations Yet</h3>
+                <p className="text-neutral-400 mb-4">Start a conversation to generate charts and insights</p>
+                <button
+                  onClick={() => {
+                    const chatInput = document.querySelector('input[placeholder*="Ask a question"]') as HTMLInputElement;
+                    if (chatInput) {
+                      chatInput.focus();
                     }
-                    await onAsk(e);
-                  }} className="flex items-center gap-2">
-                  <input
-                    value={question}
-                    onChange={(e) => {
-                      if (error) setError(null);
-                      setQuestion(e.target.value);
-                    }}
-                    placeholder="Ask a question about your data..."
-                    className="flex-1 rounded-full border border-white/15 bg-white/8 px-4 py-3 md:py-2 backdrop-blur text-neutral-100 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-inner indus-border-glow"
-                    disabled={isSending}
-                  />
-                  {/* Mic button removed on mobile for simplicity/responsiveness */}
-                    <button
-                      type="submit"
-                      className="inline-flex items-center gap-2 rounded-full indus-button-primary disabled:opacity-60 disabled:cursor-not-allowed px-5 py-3 md:py-2 font-medium shadow pressable"
-                      disabled={isSending || !question.trim()}
-                    >
-                    {isSending ? (
-                      <>
-                        <span className="inline-block w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                        Sending…
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.125a.563.563 0 01.71-.71L12 6l8.021-3.585a.563.563 0 01.71.71L18 12l2.731 8.875a.563.563 0 01-.71.71L12 18l-8.021 3.585a.563.563 0 01-.71-.71L6 12z" />
-                        </svg>
-                        Ask
-                      </>
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 indus-button-primary rounded-lg pressable"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
+                  </svg>
+                  Start Chatting
+                </button>
+              </div>
+            ) : (
+              <div className={`grid gap-6 ${gridCols === 1 ? 'grid-cols-1' : gridCols === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'}`}>
+                {graphs.map((graph, index) => (
+                  <div key={graph.graph_id || index} className="indus-card p-6 hover:bg-white/10 transition-all duration-300 group">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-primary">
+                            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-white group-hover:text-primary transition-colors">
+                            {graph.title || `Chart ${index + 1}`}
+                          </h3>
+                          <p className="text-sm text-neutral-400">
+                            {graph.graph_type || 'Visualization'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <UnpinButton
+                          graphId={graph.graph_id || ''}
+                          onUnpinned={() => {
+                            showSuccess("Graph removed from dashboard!");
+                            loadGraphs();
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="min-h-[400px] rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                      {graph.html_content ? (
+                        <div className="w-full h-full min-h-[400px]">
+                          <HTMLRender html={graph.html_content} />
+                        </div>
+                      ) : (graph as any).data ? (
+                        <ChartRenderer 
+                          data={(graph as any).data} 
+                          type={graph.graph_type || 'bar'} 
+                          title={graph.title || undefined}
+                          className="w-full h-full p-4"
+                        />
+                      ) : (
+                        <div className="text-center text-neutral-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-12 h-12 mx-auto mb-2 opacity-50">
+                            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                          </svg>
+                          <p className="text-sm">No preview available</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {graph.description && (
+                      <p className="mt-3 text-sm text-neutral-400 line-clamp-2">
+                        {graph.description}
+                      </p>
                     )}
-                  </button>
-                  </form>
-                  {/* New chat (mobile quick reset) */}
-                  <div className="mt-2 md:hidden">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          // Create a new transcript
-                          const newTranscript = await createTranscript({
-                            title: "New Chat",
-                            metadata: {
-                              created_at: new Date().toISOString(),
-                              source: 'dashboard'
-                            }
-                          });
-                          
-                          // Extract transcript ID from response
-                          const newTranscriptId = (newTranscript as { transcript_id?: string; id?: string })?.transcript_id || (newTranscript as { transcript_id?: string; id?: string })?.id;
-                          
-                          if (newTranscriptId && typeof newTranscriptId === 'string') {
-                            // Clear all chat-related state
-                            setChat([]);
-                            setTranscriptId(newTranscriptId);
-                            setDashboardTranscriptId(newTranscriptId);
-                            setError(null);
-                            ignoreResponsesRef.current = false; // Allow new responses
-                            setIsAwaitingAnswer(false);
-                            setIsFirstQuestion(true); // Mark as first question for new transcript
-                            setChatKey(prev => prev + 1); // Force re-render
-                            
-                            // Force scroll to top of messages
-                            setTimeout(() => {
-                              if (messagesRef.current) {
-                                messagesRef.current.scrollTop = 0;
-                              }
-                            }, 0);
-                            
-                            showSuccess("New chat started");
-                            
-                            // Refresh transcript list
-                            if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
-                              (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
-                            }
-                          } else {
-                            throw new Error("Failed to create transcript");
-                          }
-                        } catch (error) {
-                          console.error("Failed to create new transcript:", error);
-                          setError("Failed to create new chat. Please try again.");
-                        }
-                      }}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-4 py-2 text-sm"
-                      title="Start a new chat"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                        <path d="M9 3.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 9 3.5Z" />
-                      </svg>
-                      New chat
-                    </button>
                   </div>
-                </div>
-                {error && (
-                  <div className="mt-2 text-sm text-red-400">{error}</div>
-                )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
-      <div className={"grid gap-6 fade-in-up " + (gridCols === 1 ? "grid-cols-1" : gridCols === 2 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-3") }>
-        {((graphs ?? []).filter((g) => g?.html_content || g?.figure || g?.description) as DashboardGraph[]).map((g, idx) => (
-          <Card key={idx} className="glass-fade-in hover:shadow-[0_10px_40px_rgba(0,0,0,0.25)] transition-shadow">
-            <CardHeader>
-              <div className="flex items-center justify-between w-full">
-                <h2 className="font-medium tracking-tight">{g.title ?? g.graph_type ?? "Graph"}</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedGraph(g)}
-                    className="rounded border border-white/10 bg-white/5 px-2 py-1 text-xs hover:bg-white/10"
-                    title="Expand"
-                  >
-                    View
-                  </button>
-                  {g.graph_id && (
-                    <UnpinButton
-                      graphId={g.graph_id}
-                      onUnpinned={() => {
-                        setGraphs((prev) => prev.filter((x) => x.graph_id !== g.graph_id));
-                        showSuccess("Unpinned from dashboard");
-                      }}
-                    />
+      {/* Fixed Right Chat Panel - Full Height */}
+      <div className="w-full lg:w-[600px] h-[50vh] lg:h-screen indus-card flex flex-col border-t lg:border-t-0 lg:border-l border-white/10 overflow-hidden">
+        <div className="flex-shrink-0 p-6 border-b border-white/10 bg-white/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center indus-glow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white">
+                  <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-white indus-text-gradient">AI Chat</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <ChatHistoryButton
+                isOpen={isHistoryOpen}
+                onToggle={() => setIsHistoryOpen(!isHistoryOpen)}
+              />
+              <TranscriptSelect
+                activeTranscriptId={transcriptId}
+                onSelect={(id) => {
+                  setTranscriptId(id);
+                  setDashboardTranscriptId(id);
+                  const saved = loadChatFromStorage(id);
+                  setChat(Array.isArray(saved) ? saved : []);
+                  setIsFirstQuestion(false); // Reset first question flag when switching transcripts
+                  setChatKey(prev => prev + 1); // Force re-render
+                }}
+              />
+              <NewChatButton onNew={async () => {
+                try {
+                  // Create a new transcript
+                  const newTranscript = await createTranscript({
+                    title: "New Chat",
+                    metadata: {
+                      created_at: new Date().toISOString(),
+                      source: 'dashboard'
+                    }
+                  });
+                  
+                  // Extract transcript ID from response
+                  const newTranscriptId = (newTranscript as { transcript_id?: string; id?: string })?.transcript_id || (newTranscript as { transcript_id?: string; id?: string })?.id;
+                  
+                  if (newTranscriptId && typeof newTranscriptId === 'string') {
+                    // Clear all chat-related state
+                    setChat([]);
+                    setTranscriptId(newTranscriptId);
+                    setDashboardTranscriptId(newTranscriptId);
+                    setError(null);
+                    ignoreResponsesRef.current = false; // Allow new responses
+                    setIsAwaitingAnswer(false);
+                    setIsFirstQuestion(true); // Mark as first question for new transcript
+                    setChatKey(prev => prev + 1); // Force re-render
+                    
+                    // Force scroll to top of messages
+                    setTimeout(() => {
+                      if (messagesRef.current) {
+                        messagesRef.current.scrollTop = 0;
+                      }
+                    }, 0);
+                    
+                    showSuccess("New chat started");
+                    
+                    // Refresh transcript list
+                    if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
+                      (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
+                    }
+                  } else {
+                    throw new Error("Failed to create transcript");
+                  }
+                } catch (error) {
+                  console.error("Failed to create new transcript:", error);
+                  setError("Failed to create new chat. Please try again.");
+                }
+              }} />
+            </div>
+          </div>
+        </div>
+        
+        {/* Chat History Panel */}
+        {isHistoryOpen && (
+          <div className="px-4 pb-4">
+            <ChatHistoryPanel
+              activeTranscriptId={transcriptId}
+              onSelect={async (id, title) => {
+                setTranscriptId(id);
+                setDashboardTranscriptId(id);
+                const saved = loadChatFromStorage(id);
+                setChat(Array.isArray(saved) ? saved : []);
+                setIsFirstQuestion(false);
+                setChatKey(prev => prev + 1);
+                setIsHistoryOpen(false);
+              }}
+              onDelete={async (id) => {
+                try {
+                  await deleteTranscript(id);
+                  if (transcriptId === id) {
+                    // If we're deleting the current transcript, create a new one
+                    const newTranscript = await createTranscript({
+                      title: "New Chat",
+                      metadata: { created_at: new Date().toISOString() },
+                    });
+                    const newId = extractTranscriptId(newTranscript);
+                    if (newId) {
+                      setTranscriptId(newId);
+                      setDashboardTranscriptId(newId);
+                      setChat([]);
+                      setIsFirstQuestion(true);
+                      setChatKey(prev => prev + 1);
+                    }
+                  }
+                  // Refresh the history panel
+                  (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts?.();
+                } catch (error) {
+                  console.error("Failed to delete transcript:", error);
+                  setError("Failed to delete chat. Please try again.");
+                }
+              }}
+              onClose={() => setIsHistoryOpen(false)}
+            />
+          </div>
+        )}
+        
+        {/* Chat Messages */}
+        <div ref={messagesRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0" key={chatKey}>
+          {chat.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center px-6">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-6 indus-glow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-10 h-10 text-primary">
+                  <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-3">Welcome to AI Analytics</h3>
+              <p className="text-neutral-400 text-sm max-w-sm leading-relaxed mb-6">
+                Ask questions about your data and get instant insights with AI-powered analysis.
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <span className="px-3 py-1.5 bg-white/5 rounded-lg text-xs text-neutral-300 font-medium">Data Analysis</span>
+                <span className="px-3 py-1.5 bg-white/5 rounded-lg text-xs text-neutral-300 font-medium">Charts & Graphs</span>
+                <span className="px-3 py-1.5 bg-white/5 rounded-lg text-xs text-neutral-300 font-medium">Real-time Insights</span>
+              </div>
+            </div>
+          ) : (
+            chat.map((item, i) => (
+              <div key={i} className={`flex ${item.role === "user" ? "justify-end" : "justify-start"} group`}>
+                <div className={`max-w-[80%] ${item.role === "user" ? "ml-12" : "mr-12"}`}>
+                  {/* User Message */}
+                  {item.role === "user" ? (
+                    <div className="bg-gradient-to-r from-primary to-accent text-white rounded-2xl px-4 py-3 shadow-lg">
+                      <div className="text-sm leading-relaxed">
+                        <HTMLRender html={item.text || ""} isTextContent={true} />
+                      </div>
+                    </div>
+                  ) : (
+                    /* Assistant Message */
+                    <div>
+                      {/* Message Content - Only show if there's text content AND no graphs */}
+                      {item.text && item.text.trim() && (!item.graphs || item.graphs.length === 0) && (
+                        <div className="bg-white/10 border border-white/20 text-white rounded-2xl px-4 py-3 backdrop-blur-sm shadow-sm">
+                          <div className="text-sm leading-relaxed text-white">
+                            <HTMLRender html={item.text} isTextContent={true} />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Graphs */}
+                      {item.graphs && item.graphs.length > 0 && (
+                        <div className="space-y-3">
+                          {item.graphs.map((graph, j) => (
+                            <div key={j} className="bg-white/10 border border-white/20 rounded-2xl overflow-hidden backdrop-blur-sm shadow-sm">
+                              {/* Graph Header */}
+                              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-primary">
+                                      <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-semibold text-white">
+                                      {item.userQuestion || graph.title || `Chart ${j + 1}`}
+                                    </span>
+                                    <p className="text-xs text-neutral-300 font-medium">
+                                      {graph.graph_type || 'Data visualization'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <PinButton
+                                  title={item.userQuestion || graph.title || `Chart ${j + 1}`}
+                                  figure={graph.figure}
+                                  html={graph.html}
+                                  graph_type={graph.graph_type || "chart"}
+                                  onPinned={() => {
+                                    showSuccess("Graph pinned to dashboard!");
+                                    loadGraphs();
+                                  }}
+                                />
+                              </div>
+                              
+                              {/* Graph Content */}
+                              <div className="p-4">
+                                {graph.html && (
+                                  <div className="w-full flex items-center justify-center">
+                                    <HTMLRender html={graph.html} />
+                                  </div>
+                                )}
+                                {!graph.html && (graph as any).data && (
+                                  <div className="w-full">
+                                    <ChartRenderer 
+                                      data={(graph as any).data} 
+                                      type={graph.graph_type || 'bar'} 
+                                      title={graph.title || undefined}
+                                      className="w-full h-full"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Graph Insight */}
+                              {graph.insight && (
+                                <div className="px-4 pb-4">
+                                  <div className="p-3 bg-primary/20 rounded-lg border border-primary/30 shadow-sm">
+                                    <div className="flex items-start gap-2">
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-primary mt-0.5 flex-shrink-0">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                      </svg>
+                                      <p className="text-sm text-white leading-relaxed font-medium">{graph.insight}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
-              {typeof g.row_count === "number" && g.row_count > 0 && (
-                <span className="text-xs text-neutral-400">{g.row_count} rows</span>
-              )}
-            </CardHeader>
-            <CardContent>
-              {!g.graph_id && (
-                <div className="flex items-center justify-end mb-2">
-                  <PinButton
-                    title={g.title}
-                    figure={g.figure as unknown}
-                    html={g.html_content ?? null}
-                    graph_type={g.graph_type ?? null}
-                    onPinned={async () => {
-                      try {
-                        const res = await listDashboardGraphs({ active_only: true });
-                        setGraphs(res?.graphs ?? []);
-                      } catch {}
-                      showSuccess("Pinned to dashboard");
-                    }}
-                  />
-                </div>
-              )}
-              {g.html_content ? (
-                <HTMLRender html={g.html_content} height={gridCols === 1 ? 640 : 360} />
-              ) : g.figure ? (
-                <p className="text-sm text-neutral-300">Visualization available.</p>
-              ) : null}
-              {g.description && (
-                <p className="text-neutral-300 text-sm mt-2">{g.description}</p>
-              )}
-              {g.graph_id && (
-                <div className="mt-2 text-xs text-neutral-400 space-y-1">
-                  {g.data_source && (
-                    <div><span className="text-neutral-500">Source:</span> {g.data_source}</div>
-                  )}
-                  {Array.isArray(g.fields) && g.fields.length > 0 && (
-                    <div>
-                      <span className="text-neutral-500">Fields:</span> {g.fields.slice(0, 5).join(", ")}
-                      {g.fields.length > 5 ? ` +${g.fields.length - 5} more` : ""}
-                    </div>
-                  )}
-                  {g.summary && (
-                    <div>
-                      <span className="text-neutral-500">Summary:</span> {typeof g.summary === "string" ? g.summary : Object.keys(g.summary as Record<string, unknown>).slice(0, 5).join(", ")}
-                    </div>
-                  )}
-                  {g.last_synced_at && (
-                    <div><span className="text-neutral-500">Last synced:</span> {g.last_synced_at}</div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      {((graphs ?? []).filter((g) => g?.html_content || g?.figure || g?.description).length ?? 0) === 0 && (
-        <div className="glass-fade-in rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
-          <div className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow ring-1 ring-white/20">📌</div>
-          <h3 className="text-lg font-medium tracking-tight">No pinned insights yet</h3>
-          <p className="mt-1 text-sm text-neutral-300">Ask a question and pin your favorite results to build your dashboard.</p>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsChatOpen(true)}
-              className="pressable btn-gradient-animate inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-400 hover:from-violet-500 hover:via-fuchsia-400 hover:to-cyan-300 px-4 py-2 text-sm font-medium text-black"
-              title="Open chat"
-            >
-              Open chat
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const q = "what is the employee distribution across departments";
-                setChat((prev) => [...prev, { role: "user", text: q }]);
-                setError(null);
-                sendQuestion(q);
-                setQuestion("");
-                setIsAwaitingAnswer(true);
-                setIsChatOpen(true);
-              }}
-              className="pressable inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
-            >
-              What is the employee distribution across departments
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const q = "what were the sales this year";
-                setChat((prev) => [...prev, { role: "user", text: q }]);
-                setError(null);
-                sendQuestion(q);
-                setQuestion("");
-                setIsAwaitingAnswer(true);
-                setIsChatOpen(true);
-              }}
-              className="pressable inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
-            >
-              What were the sales this year
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        {isFetching && <p className="text-sm text-neutral-400">Refreshing…</p>}
-        {poll.isPolling && <p className="text-sm text-neutral-400">Polling results…</p>}
-      </div>
-
-      {/* Expanded Graph Modal */}
-      {expandedGraph && (
-        <div className="fixed inset-0 z-50" onClick={() => setExpandedGraph(null)}>
-          <div className="absolute inset-0 bg-black/60 modal-overlay-fade" />
-          <div className="absolute inset-0 p-6 fade-in-up" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto max-w-6xl">
-              <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between w-full">
-                    <div>
-                      <h3 className="font-medium">{expandedGraph.title ?? expandedGraph.graph_type ?? "Graph"}</h3>
-                      {typeof expandedGraph.row_count === "number" && expandedGraph.row_count > 0 && (
-                        <span className="text-xs text-neutral-400">{expandedGraph.row_count} rows</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedGraph(null)}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded border border-white/10 hover:bg-white/10"
-                        aria-label="Close"
-                      >
-                        ✕
-                      </button>
-                    </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-                  {expandedGraph.html_content ? (
-                    <HTMLRender html={expandedGraph.html_content} height={760} />
-                  ) : expandedGraph.figure ? (
-                      <p className="text-sm text-neutral-300">Visualization available.</p>
-                    ) : (
-                    <p className="text-neutral-400 text-sm">No visualization available.</p>
-                  )}
-                  {expandedGraph.description && (
-                    <p className="text-neutral-300 text-sm mt-2">{expandedGraph.description}</p>
-                  )}
-                  {expandedGraph.graph_id && (
-                    <div className="mt-2 text-xs text-neutral-400 space-y-1">
-                      {expandedGraph.data_source && (
-                        <div><span className="text-neutral-500">Source:</span> {expandedGraph.data_source}</div>
-                      )}
-                      {Array.isArray(expandedGraph.fields) && expandedGraph.fields.length > 0 && (
-                        <div>
-                          <span className="text-neutral-500">Fields:</span> {expandedGraph.fields.slice(0, 8).join(", ")}
-                          {expandedGraph.fields.length > 8 ? ` +${expandedGraph.fields.length - 8} more` : ""}
-                        </div>
-                      )}
-                      {expandedGraph.summary && (
-                        <div>
-                          <span className="text-neutral-500">Summary:</span> {typeof expandedGraph.summary === "string" ? expandedGraph.summary : Object.keys(expandedGraph.summary as Record<string, unknown>).slice(0, 8).join(", ")}
-                        </div>
-                      )}
-                      {expandedGraph.last_synced_at && (
-                        <div><span className="text-neutral-500">Last synced:</span> {expandedGraph.last_synced_at}</div>
-                    )}
+            ))
+          )}
+          {isAwaitingAnswer && (
+            <div className="flex justify-start">
+              <div className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 backdrop-blur-sm mr-12 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
-            )}
-          </CardContent>
-        </Card>
+                  <span className="text-sm text-white font-medium">Analyzing your data...</span>
+                </div>
+              </div>
             </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+        
+        {/* Voice Chat Controls */}
+        <div className="flex-shrink-0 p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
+          <div className="flex items-center justify-center">
+            <VoiceChat
+              onTranscript={handleVoiceTranscript}
+              onError={handleVoiceError}
+              isEnabled={isVoiceEnabled}
+              onToggle={toggleVoiceChat}
+            />
           </div>
         </div>
-      )}
+
+        {/* Chat Input */}
+        <div className="flex-shrink-0 p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
+          <form onSubmit={onAsk} className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 relative">
+                <textarea
+                  value={question}
+                  onChange={(e) => {
+                    if (error) setError(null);
+                    setQuestion(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      onAsk(e);
+                    }
+                  }}
+                  placeholder="Ask a question about your data..."
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all pr-12 hover:bg-white/15 text-sm resize-none min-h-[48px] max-h-32"
+                  rows={1}
+                  style={{
+                    height: 'auto',
+                    minHeight: '48px',
+                    maxHeight: '128px'
+                  }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+                  }}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-neutral-400">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={!question.trim() || isAwaitingAnswer}
+                className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-r from-primary to-accent disabled:opacity-50 disabled:cursor-not-allowed hover:from-primary-dark hover:to-accent-light transition-all shadow-lg"
+              >
+                {isAwaitingAnswer ? (
+                  <div className="w-4 h-4 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
+                    <path d="M10.894 2.553a1 1 0 0 0-1.788 0l-7 14a1 1 0 0 0 1.169 1.409l5-1.429A1 1 0 0 0 9 15.571V11a1 1 0 1 1 2 0v4.571a1 1 0 0 0 .725.962l5 1.428a1 1 0 0 0 1.17-1.408l-7-14Z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setQuestion("Show me sales trends for the last quarter")}
+                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium"
+              >
+                 Sales Trends
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuestion("What are the top performing products?")}
+                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium"
+              >
+                 Top Products
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuestion("Create a pie chart of customer segments")}
+                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium"
+              >
+                Customer Segments
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuestion("Show revenue by month")}
+                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium"
+              >
+                Revenue Analysis
+              </button>
+            </div>
+          </form>
+          
+          {error && (
+            <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-red-400">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm text-red-400 font-medium">{error}</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+      
+      {/* Error Notification */}
+      <ErrorNotification 
+        error={error} 
+        onDismiss={() => setError(null)} 
+        type="error" 
+      />
+      </div>
+    </ErrorBoundary>
   );
 }
-
 
 function ChatHistoryPanel({
   activeTranscriptId,
@@ -919,13 +953,14 @@ function ChatHistoryPanel({
   onDelete: (id: string) => void | Promise<void>;
   onClose: () => void;
 }) {
-  const [items, setItems] = useState<Array<Record<string, unknown>> | null>(null);
+  const [items, setItems] = useState<Array<{ id?: string; title?: string | null }>>([]);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     let m = true;
     (async () => {
       try {
-        const data = (await listTranscripts({ limit: 100 })) as Array<Record<string, unknown>>;
+        const data = await listTranscripts({});
         if (m) setItems(data);
       } finally {
         if (m) setLoading(false);
@@ -944,7 +979,7 @@ function ChatHistoryPanel({
       ) : (
         <ul className="max-h-56 overflow-auto space-y-1">
           {(items ?? [])?.map((t, i: number) => {
-            const id = extractTranscriptId(t);
+            const id = extractTranscriptId(t) ?? "";
             const title = (t as { title?: string | null })?.title ?? null;
             if (!id) return null;
             const isActive = activeTranscriptId === id;
@@ -959,21 +994,11 @@ function ChatHistoryPanel({
                   <span className="text-sm">{title ?? "Untitled"}</span>
                 </button>
                 <button
-                  className="text-xs text-red-400 hover:text-red-300"
-                  onClick={async () => {
-                    await onDelete(id);
-                    // Refresh list
-                    try {
-                      const data = (await listTranscripts({ limit: 100 })) as Array<Record<string, unknown>>;
-                      setItems(data);
-                    } catch {}
-                    // Also refresh the dropdown
-                    if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
-                      (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
-                    }
-                  }}
+                  onClick={() => onDelete(id)}
+                  className="text-xs text-neutral-400 hover:text-red-400"
+                  title="Delete"
                 >
-                  Delete
+                  ✕
                 </button>
               </li>
             );
@@ -982,28 +1007,36 @@ function ChatHistoryPanel({
       )}
     </div>
   );
-}
-
-function TranscriptSelect({ activeTranscriptId, onSelect }: { activeTranscriptId: string | null; onSelect: (id: string, title?: string | null) => void }) {
-  const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
+}function TranscriptSelect({
+  activeTranscriptId,
+  onSelect,
+}: {
+  activeTranscriptId: string | null;
+  onSelect: (id: string, title?: string | null) => void | Promise<void>;
+}) {
+  const [items, setItems] = useState<Array<{ id?: string; title?: string | null }>>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
-  
+
   const loadTranscripts = useCallback(async () => {
     try {
-      const data = (await listTranscripts({ limit: 100 })) as Array<Record<string, unknown>>;
+      const data = await listTranscripts({});
       setItems(data);
     } catch (error) {
       console.error("Failed to load transcripts:", error);
     }
   }, []);
-  
+
   useEffect(() => {
-    loadTranscripts();
+    loadTranscripts().finally(() => setLoading(false));
   }, [loadTranscripts, refreshKey]);
-  
-  // Expose refresh function globally for new chat creation
+
   useEffect(() => {
-    (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts = () => setRefreshKey(prev => prev + 1);
+    // Expose refresh function globally
+    (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+    
     return () => {
       delete (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts;
     };
@@ -1012,9 +1045,14 @@ function TranscriptSelect({ activeTranscriptId, onSelect }: { activeTranscriptId
   return (
     <select
       className={
-        "inline-block text-sm rounded-full border px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-600/50 bg-neutral-900/95 text-white " +
+        "inline-block text-sm rounded-full border px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50 bg-gray-800 text-white " +
         (isEmpty ? "border-white/50" : "border-white/40")
       }
+      style={{ 
+        backgroundColor: '#1f2937', 
+        color: 'white',
+        borderColor: 'rgba(255, 255, 255, 0.2)'
+      }}
       value={activeTranscriptId ?? "__placeholder__"}
       onChange={(e) => {
         const id = e.target.value;
@@ -1039,12 +1077,32 @@ function TranscriptSelect({ activeTranscriptId, onSelect }: { activeTranscriptId
   );
 }
 
+function ChatHistoryButton({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium pressable ${
+        isOpen 
+          ? "bg-white/20 text-white border border-white/30" 
+          : "bg-white/10 text-white/80 hover:bg-white/15 border border-white/20"
+      }`}
+      title="View chat history"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+        <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
+      </svg>
+      <span>History</span>
+    </button>
+  );
+}
+
 function NewChatButton({ onNew }: { onNew: () => void }) {
   return (
     <button
       type="button"
       onClick={onNew}
-      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1.5 text-xs font-medium ring-1 ring-white/15 hover:from-violet-500 hover:to-fuchsia-500 pressable"
+      className="inline-flex items-center gap-2 rounded-full indus-button-primary px-3 py-1.5 text-xs font-medium pressable"
       title="Start a new chat"
     >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">

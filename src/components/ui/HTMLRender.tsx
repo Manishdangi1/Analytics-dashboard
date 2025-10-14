@@ -1,9 +1,32 @@
 "use client";
 import { useEffect, useMemo, useRef } from "react";
 
-export function HTMLRender({ html, className = "", height }: { html: string; className?: string; height?: number }) {
+export function HTMLRender({ html, className = "", height, isTextContent = false }: { html: string; className?: string; height?: number; isTextContent?: boolean }) {
+  // Check if content contains charts, graphs, or interactive elements
+  const hasInteractiveContent = useMemo(() => {
+    return html.includes('plotly') || 
+           html.includes('chart') || 
+           html.includes('graph') || 
+           html.includes('svg') || 
+           html.includes('canvas') ||
+           html.includes('script') ||
+           html.includes('iframe') ||
+           html.includes('table') ||
+           html.includes('img');
+  }, [html]);
+
   const srcDoc = useMemo(() => {
-    return `<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>html,body{margin:0;background:transparent;color:#fff}*,*:before,*:after{box-sizing:border-box}</style></head><body>${html}</body></html>`;
+    return `<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>
+      html,body{margin:0;padding:0;background:transparent;color:#fff;font-family:system-ui,-apple-system,sans-serif}
+      *,*:before,*:after{box-sizing:border-box}
+      .plotly{width:100%!important;height:auto!important}
+      .js-plotly-plot{width:100%!important;height:auto!important}
+      svg{max-width:100%;height:auto}
+      img{max-width:100%;height:auto}
+      table{width:100%;border-collapse:collapse}
+      th,td{border:1px solid rgba(255,255,255,0.2);padding:8px;text-align:left}
+      th{background:rgba(255,255,255,0.1)}
+    </style></head><body>${html}</body></html>`;
   }, [html]);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -45,12 +68,25 @@ export function HTMLRender({ html, className = "", height }: { html: string; cla
     };
   }, [srcDoc, height]);
 
+  // For text content, render directly without iframe
+  if (isTextContent || (!hasInteractiveContent && html.trim().length < 1000)) {
+    return (
+      <div 
+        className={className}
+        dangerouslySetInnerHTML={{ __html: html }}
+        style={{ minHeight: height || 'auto' }}
+      />
+    );
+  }
+
+  // For interactive content (charts, graphs, etc.), use iframe
   return (
     <iframe
       ref={iframeRef}
       className={"w-full rounded-md border border-white/10 bg-transparent " + className}
       srcDoc={srcDoc}
       sandbox="allow-scripts allow-same-origin"
+      style={{ minHeight: height || 'auto' }}
     />
   );
 }

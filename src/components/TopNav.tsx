@@ -12,13 +12,21 @@ export default function TopNav() {
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
   useEffect(() => {
     // Only check authentication on client side
     if (typeof window !== "undefined") {
-      const token = getAccessToken();
-      setIsAuthenticated(!!token);
-      setIsLoading(false);
+      // Add a delay to prevent immediate authentication check
+      const timer = setTimeout(() => {
+        const token = getAccessToken();
+        // Only set authenticated if token exists and is valid
+        setIsAuthenticated(!!token);
+        setIsLoading(false);
+        setHasCheckedAuth(true);
+      }, 300);
+      
+      return () => clearTimeout(timer);
     } else {
       // On server side, keep loading true to prevent flash
       setIsLoading(true);
@@ -29,7 +37,7 @@ export default function TopNav() {
   if (pathname === "/login" || pathname === "/register") return null;
   
   // Don't render anything while checking authentication or on server side
-  if (isLoading) return null;
+  if (isLoading || !hasCheckedAuth) return null;
   
   // Only show TopNav if user is authenticated
   if (!isAuthenticated) return null;
