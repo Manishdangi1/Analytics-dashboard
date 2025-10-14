@@ -37,35 +37,37 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen page-gradient flex items-center justify-center p-6">
-      <div className="w-full max-w-sm glass-fade-in fade-in-up rounded-xl border border-neutral-800/60 bg-neutral-900/60 backdrop-blur-md shadow-lg shadow-violet-900/10">
-        <div className="px-6 pt-6 pb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="h-8 w-8 rounded bg-gradient-to-br from-violet-500 to-cyan-400" />
-            <h1 className="text-xl font-semibold tracking-tight">Welcome back</h1>
+    <div className="h-screen page-gradient">
+      <div className="h-full w-full glass-fade-in fade-in-up border border-neutral-800/60 bg-neutral-900/60 backdrop-blur-md shadow-lg shadow-violet-900/10 flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-full max-w-md px-8">
+            <div className="px-8 pt-8 pb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-10 w-10 rounded indus-button-primary indus-glow" />
+            <h1 className="text-2xl font-semibold tracking-tight indus-text-gradient">Welcome back</h1>
           </div>
-          <p className="text-sm text-neutral-400">Sign in to continue to your dashboard</p>
+          <p className="text-base text-neutral-400">Sign in to continue to your dashboard</p>
         </div>
-        <form onSubmit={onSubmit} className="px-6 pb-6 space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm text-neutral-300">Email</label>
+        <form onSubmit={onSubmit} className="px-8 pb-8 space-y-6">
+          <div className="space-y-3">
+            <label className="text-base font-medium text-neutral-300">Email</label>
             <input
               type="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-neutral-800 bg-neutral-950/70 px-3 py-2 outline-none focus:border-violet-600/70 focus:ring-2 focus:ring-violet-600/20"
+              className="w-full rounded-lg border border-neutral-800 bg-neutral-950/70 px-4 py-3 text-base outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/20 indus-border-glow"
               required
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-sm text-neutral-300">Password</label>
+          <div className="space-y-3">
+            <label className="text-base font-medium text-neutral-300">Password</label>
             <input
               type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-neutral-800 bg-neutral-950/70 px-3 py-2 outline-none focus:border-violet-600/70 focus:ring-2 focus:ring-violet-600/20"
+              className="w-full rounded-lg border border-neutral-800 bg-neutral-950/70 px-4 py-3 text-base outline-none focus:border-primary/70 focus:ring-2 focus:ring-primary/20 indus-border-glow"
               required
             />
           </div>
@@ -73,15 +75,17 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="pressable btn-gradient-animate w-full rounded-lg bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-400 hover:from-violet-500 hover:via-fuchsia-400 hover:to-cyan-300 px-3 py-2 font-medium text-black"
+            className="pressable w-full rounded-lg indus-button-primary disabled:opacity-60 disabled:cursor-not-allowed px-6 py-4 text-lg font-medium text-white indus-glow"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
-        <div className="px-6 pb-3 text-xs text-neutral-500">By continuing you agree to our terms.</div>
-        <div className="px-6 pb-6 text-sm text-neutral-300">
-          Don&apos;t have an account? {" "}
-          <Link href="/register" className="text-violet-400 hover:text-violet-300 underline underline-offset-2">Create one</Link>
+            <div className="px-8 pb-4 text-sm text-neutral-500">By continuing you agree to our terms.</div>
+            <div className="px-8 pb-8 text-base text-neutral-300">
+              Don&apos;t have an account? {" "}
+              <Link href="/register" className="text-primary hover:text-accent underline underline-offset-2 font-medium">Create one</Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>

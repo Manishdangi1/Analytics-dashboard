@@ -261,7 +261,7 @@ export default function DashboardPage() {
   // Show loading while checking authentication
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center page-gradient">
+      <div className="h-screen flex items-center justify-center page-gradient">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white/70">Loading...</p>
@@ -271,7 +271,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen p-6 space-y-6 page-gradient">
+    <div className="h-screen page-gradient overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {notice && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60]">
           <div className="glass-fade-in inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm text-emerald-200 ring-1 ring-emerald-400/20 shadow">
@@ -281,7 +282,7 @@ export default function DashboardPage() {
         </div>
       )}
       <div className="flex items-center justify-between gap-4 fade-in-up">
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight indus-text-gradient">Dashboard</h1>
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-1 text-xs">
             <span className="text-neutral-400">Grid</span>
@@ -289,8 +290,8 @@ export default function DashboardPage() {
               type="button"
               onClick={() => setGridCols(1)}
               className={
-                "inline-flex items-center justify-center w-9 h-8 rounded border text-xs " +
-                (gridCols === 1 ? "bg-white/10 border-white/20" : "bg-white/5 border-white/10 hover:bg-white/10")
+                "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
+                (gridCols === 1 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
               }
               title="1 column"
             >
@@ -302,8 +303,8 @@ export default function DashboardPage() {
               type="button"
               onClick={() => setGridCols(2)}
               className={
-                "inline-flex items-center justify-center w-9 h-8 rounded border text-xs " +
-                (gridCols === 2 ? "bg-white/10 border-white/20" : "bg-white/5 border-white/10 hover:bg-white/10")
+                "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
+                (gridCols === 2 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
               }
               title="2 columns"
             >
@@ -316,8 +317,8 @@ export default function DashboardPage() {
               type="button"
               onClick={() => setGridCols(3)}
               className={
-                "inline-flex items-center justify-center w-9 h-8 rounded border text-xs " +
-                (gridCols === 3 ? "bg-white/10 border-white/20" : "bg-white/5 border-white/10 hover:bg-white/10")
+                "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
+                (gridCols === 3 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
               }
               title="3 columns"
             >
@@ -334,13 +335,13 @@ export default function DashboardPage() {
       {/* Floating Chat Button */}
       {!isChatOpen && (
         <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50">
-          <div className="absolute -inset-1 md:-inset-2 rounded-full bg-gradient-to-r from-violet-500/30 to-fuchsia-500/30 blur-md md:blur-lg animate-pulse" />
+          <div className="absolute -inset-1 md:-inset-2 rounded-full bg-gradient-to-r from-primary/30 to-accent/30 blur-md md:blur-lg animate-pulse" />
           <button
             type="button"
             onClick={() => setIsChatOpen(true)}
             aria-label="Open chat"
             title="Open chat"
-            className="relative inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 ring-1 ring-white/20 shadow-xl hover:from-violet-500 hover:to-fuchsia-500 pressable btn-gradient-animate"
+            className="relative inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full indus-button-primary ring-1 ring-white/20 shadow-xl pressable indus-glow"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 md:w-6 md:h-6 text-white">
               <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
@@ -358,10 +359,10 @@ export default function DashboardPage() {
               <CardHeader className="bg-white/5 sticky top-0 z-10">
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-3 w-full">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-violet-600 text-white shadow">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full indus-button-primary text-white shadow indus-glow">
                       💬
                     </span>
-                    <span className="font-semibold text-lg tracking-tight">Chat</span>
+                    <span className="font-semibold text-lg tracking-tight indus-text-gradient">Chat</span>
                     <div className="ml-auto hidden md:flex items-center gap-2">
                       <TranscriptSelect
                         activeTranscriptId={transcriptId}
@@ -576,15 +577,15 @@ export default function DashboardPage() {
                       setQuestion(e.target.value);
                     }}
                     placeholder="Ask a question about your data..."
-                    className="flex-1 rounded-full border border-white/15 bg-white/8 px-4 py-3 md:py-2 backdrop-blur text-neutral-100 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-violet-600/50 shadow-inner"
+                    className="flex-1 rounded-full border border-white/15 bg-white/8 px-4 py-3 md:py-2 backdrop-blur text-neutral-100 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-inner indus-border-glow"
                     disabled={isSending}
                   />
                   {/* Mic button removed on mobile for simplicity/responsiveness */}
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-60 disabled:cursor-not-allowed px-5 py-3 md:py-2 font-medium shadow pressable btn-gradient-animate"
-                    disabled={isSending || !question.trim()}
-                  >
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-2 rounded-full indus-button-primary disabled:opacity-60 disabled:cursor-not-allowed px-5 py-3 md:py-2 font-medium shadow pressable"
+                      disabled={isSending || !question.trim()}
+                    >
                     {isSending ? (
                       <>
                         <span className="inline-block w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -872,8 +873,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
-      
+      </div>
     </div>
   );
 }

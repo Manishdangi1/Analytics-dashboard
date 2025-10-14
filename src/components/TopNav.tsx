@@ -29,7 +29,7 @@ export default function TopNav() {
 
   return (
     <div className="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/5 border-b border-white/10">
-      <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between">
+      <div className="w-full px-4 h-14 flex items-center justify-between">
         <Link href="/dashboard" className="font-semibold">Indus</Link>
         <nav className="flex items-center gap-4 text-sm">
           {links.map((l) => (
