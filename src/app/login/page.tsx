@@ -80,7 +80,7 @@ export default function LoginPage() {
         </form>
         <div className="px-6 pb-3 text-xs text-neutral-500">By continuing you agree to our terms.</div>
         <div className="px-6 pb-6 text-sm text-neutral-300">
-          Don't have an account? {" "}
+          Don&apos;t have an account? {" "}
           <Link href="/register" className="text-violet-400 hover:text-violet-300 underline underline-offset-2">Create one</Link>
         </div>
       </div>

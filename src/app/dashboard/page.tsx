@@ -1,5 +1,5 @@
 "use client";
-import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, livekitCreateSession, livekitEndSession, livekitQuery } from "@/lib/queries";
+import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, livekitEndSession, livekitQuery } from "@/lib/queries";
 import { extractTranscriptId } from "@/lib/ids";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryResultsPoll } from "@/hooks/useQueryResultsPoll";
@@ -25,9 +25,6 @@ export default function DashboardPage() {
   const [expandedGraph, setExpandedGraph] = useState<DashboardGraph | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [lkSessionId, setLkSessionId] = useState<string | null>(null);
-  const [lkDisplayName, setLkDisplayName] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [hasSpeechApi, setHasSpeechApi] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [notice, setNotice] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
@@ -48,11 +45,11 @@ export default function DashboardPage() {
       return [];
     }
   }
-  function saveChatToStorage(tid: string, items: Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[] }>) {
+  const saveChatToStorage = useCallback((tid: string, items: Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[] }>) => {
     try {
       localStorage.setItem(chatStorageKey(tid), JSON.stringify(items.slice(-200)));
     } catch {}
-  }
+  }, []);
 
   function showSuccess(text: string) {
     setNotice({ text, type: "success" });
@@ -70,7 +67,7 @@ export default function DashboardPage() {
     if (typeof window === "undefined") return;
     if (!transcriptId) return;
     saveChatToStorage(transcriptId, chat);
-  }, [chat, transcriptId]);
+  }, [chat, transcriptId, saveChatToStorage]);
 
   // Prevent background scroll when chat is open (mobile fix)
   useEffect(() => {
@@ -106,9 +103,6 @@ export default function DashboardPage() {
       if (y) window.scrollTo(0, y);
     };
   }, [isChatOpen]);
-  const speechRef = useRef<SpeechRecognition | null>(null);
-  const endAfterStopRef = useRef(false);
-  const speechTextRef = useRef<string>("");
 
   // Require login for dashboard
   useEffect(() => {
@@ -184,65 +178,6 @@ export default function DashboardPage() {
     }
   }, [transcriptId]);
 
-  // Initialize SpeechRecognition if available
-  useEffect(() => {
-    const SR: typeof window.SpeechRecognition | undefined = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SR) {
-      setHasSpeechApi(true);
-      const rec = new SR();
-      rec.continuous = false;
-      rec.lang = "en-US";
-      rec.interimResults = true;
-      rec.maxAlternatives = 1;
-      rec.onresult = (event: SpeechRecognitionEvent) => {
-        let interim = "";
-        let finalText = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) finalText += transcript;
-          else interim += transcript;
-        }
-        const combined = (finalText || interim).trim();
-        speechTextRef.current = combined;
-        setQuestion(combined);
-      };
-      rec.onend = async () => {
-        setIsRecording(false);
-        playBeep(520, 110);
-        const q = (speechTextRef.current || question).trim();
-        if (q) {
-          // Auto-send recognized question
-          if (lkSessionId) {
-            setChat((prev) => [...prev, { role: "user", text: q }]);
-            setQuestion("");
-            try {
-              setIsAwaitingAnswer(true);
-              await livekitQuery(lkSessionId, { question: q, context: null });
-            } catch (err) {
-              const msg = (err as { message?: string })?.message || "Voice query failed.";
-              setError(msg);
-              setIsAwaitingAnswer(false);
-            }
-          } else {
-            // simulate form submit
-            setChat((prev) => [...prev, { role: "user", text: q }]);
-            setError(null);
-            sendQuestion(q);
-            setQuestion("");
-            setIsAwaitingAnswer(true);
-          }
-        }
-        speechTextRef.current = "";
-        // If user explicitly stopped via mic toggle, end session after sending
-        if (endAfterStopRef.current && lkSessionId) {
-          try { await livekitEndSession(lkSessionId); } catch {}
-          setLkSessionId(null);
-          endAfterStopRef.current = false;
-        }
-      };
-      speechRef.current = rec;
-    }
-  }, [lkSessionId, question, sendQuestion]);
   const [graphs, setGraphs] = useState<DashboardGraph[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   async function loadGraphs() {
@@ -1075,47 +1010,5 @@ function NewChatButton({ onNew }: { onNew: () => void }) {
   );
 }
 
-function LiveKitControls({
-  sessionId,
-  displayName,
-  onDisplayNameChange,
-  onStart,
-  onEnd,
-}: {
-  sessionId: string | null;
-  displayName: string;
-  onDisplayNameChange: (v: string) => void;
-  onStart: () => void | Promise<void>;
-  onEnd: () => void | Promise<void>;
-}) {
-  return (
-    <div className="hidden md:flex items-center gap-2">
-      <input
-        value={displayName}
-        onChange={(e) => onDisplayNameChange(e.target.value)}
-        placeholder="Display name"
-        className="w-36 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-xs placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-violet-600/50"
-      />
-      <button
-        type="button"
-        onClick={onStart}
-        disabled={!!sessionId}
-        className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/20 px-3 py-1.5 text-xs hover:bg-emerald-500/30 disabled:opacity-60"
-        title="Start LiveKit session"
-      >
-        Start
-      </button>
-      <button
-        type="button"
-        onClick={onEnd}
-        disabled={!sessionId}
-        className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/20 px-3 py-1.5 text-xs hover:bg-red-500/30 disabled:opacity-60"
-        title="End LiveKit session"
-      >
-        End
-      </button>
-    </div>
-  );
-}
 
 
