@@ -1,5 +1,5 @@
 "use client";
-import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, livekitEndSession, livekitQuery } from "@/lib/queries";
+import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, livekitQuery } from "@/lib/queries";
 import { extractTranscriptId } from "@/lib/ids";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryResultsPoll } from "@/hooks/useQueryResultsPoll";
@@ -24,7 +24,7 @@ export default function DashboardPage() {
   const [gridCols, setGridCols] = useState<1 | 2 | 3>(2);
   const [expandedGraph, setExpandedGraph] = useState<DashboardGraph | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [lkSessionId, setLkSessionId] = useState<string | null>(null);
+  const [lkSessionId] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [notice, setNotice] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
@@ -114,21 +114,6 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Simple beep for UX
-  function playBeep(frequency = 880, durationMs = 120, volume = 0.06) {
-    try {
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = frequency;
-      gain.gain.value = volume;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      setTimeout(() => { osc.stop(); ctx.close(); }, durationMs);
-    } catch {}
-  }
 
   const [isSending, setIsSending] = useState(false);
   const [isFirstQuestion, setIsFirstQuestion] = useState(false);
@@ -152,8 +137,8 @@ export default function DashboardPage() {
             title: q.length > 50 ? q.substring(0, 50) + "..." : q
           });
           // Refresh transcript list to show updated title
-          if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
-            (window as any).refreshTranscripts();
+          if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
+            (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
           }
           setIsFirstQuestion(false); // Reset after first question
         } catch (error) {
@@ -195,7 +180,7 @@ export default function DashboardPage() {
     } finally {
       setIsSending(false);
     }
-  }, [transcriptId]);
+  }, [transcriptId, isFirstQuestion]);
 
   const [graphs, setGraphs] = useState<DashboardGraph[]>([]);
   const [isFetching, setIsFetching] = useState(false);
@@ -407,7 +392,7 @@ export default function DashboardPage() {
                           });
                           
                           // Extract transcript ID from response
-                          const newTranscriptId = (newTranscript as any)?.transcript_id || (newTranscript as any)?.id;
+                          const newTranscriptId = (newTranscript as { transcript_id?: string; id?: string })?.transcript_id || (newTranscript as { transcript_id?: string; id?: string })?.id;
                           
                           if (newTranscriptId && typeof newTranscriptId === 'string') {
                             // Clear all chat-related state
@@ -430,8 +415,8 @@ export default function DashboardPage() {
                             showSuccess("New chat started");
                             
                             // Refresh transcript list
-                            if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
-                              (window as any).refreshTranscripts();
+                            if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
+                              (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
                             }
                           } else {
                             throw new Error("Failed to create transcript");
@@ -487,8 +472,8 @@ export default function DashboardPage() {
                         setChat([]);
                       }
                       // Refresh dropdown after deletion
-                      if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
-                        (window as any).refreshTranscripts();
+                      if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
+                        (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
                       }
                     }}
                   />
@@ -665,7 +650,7 @@ export default function DashboardPage() {
                           });
                           
                           // Extract transcript ID from response
-                          const newTranscriptId = (newTranscript as any)?.transcript_id || (newTranscript as any)?.id;
+                          const newTranscriptId = (newTranscript as { transcript_id?: string; id?: string })?.transcript_id || (newTranscript as { transcript_id?: string; id?: string })?.id;
                           
                           if (newTranscriptId && typeof newTranscriptId === 'string') {
                             // Clear all chat-related state
@@ -688,8 +673,8 @@ export default function DashboardPage() {
                             showSuccess("New chat started");
                             
                             // Refresh transcript list
-                            if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
-                              (window as any).refreshTranscripts();
+                            if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
+                              (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
                             }
                           } else {
                             throw new Error("Failed to create transcript");
@@ -983,8 +968,8 @@ function ChatHistoryPanel({
                       setItems(data);
                     } catch {}
                     // Also refresh the dropdown
-                    if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
-                      (window as any).refreshTranscripts();
+                    if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
+                      (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
                     }
                   }}
                 >
@@ -1018,9 +1003,9 @@ function TranscriptSelect({ activeTranscriptId, onSelect }: { activeTranscriptId
   
   // Expose refresh function globally for new chat creation
   useEffect(() => {
-    (window as any).refreshTranscripts = () => setRefreshKey(prev => prev + 1);
+    (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts = () => setRefreshKey(prev => prev + 1);
     return () => {
-      delete (window as any).refreshTranscripts;
+      delete (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts;
     };
   }, []);
   const isEmpty = !activeTranscriptId;

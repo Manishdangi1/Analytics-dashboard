@@ -14,17 +14,24 @@ export default function TopNav() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = getAccessToken();
-    setIsAuthenticated(!!token);
-    setIsLoading(false);
+    // Only check authentication on client side
+    if (typeof window !== "undefined") {
+      const token = getAccessToken();
+      setIsAuthenticated(!!token);
+      setIsLoading(false);
+    } else {
+      // On server side, keep loading true to prevent flash
+      setIsLoading(true);
+    }
   }, [pathname]);
 
+  // Hide TopNav on login/register pages
   if (pathname === "/login" || pathname === "/register") return null;
   
-  // Don't render anything while checking authentication
+  // Don't render anything while checking authentication or on server side
   if (isLoading) return null;
   
-  // Only show navigation if user is authenticated
+  // Only show TopNav if user is authenticated
   if (!isAuthenticated) return null;
 
   return (
