@@ -1,5 +1,5 @@
 "use client";
-import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, livekitEndSession, livekitQuery } from "@/lib/queries";
+import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, livekitEndSession, livekitQuery } from "@/lib/queries";
 import { extractTranscriptId } from "@/lib/ids";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryResultsPoll } from "@/hooks/useQueryResultsPoll";
@@ -131,15 +131,34 @@ export default function DashboardPage() {
   }
 
   const [isSending, setIsSending] = useState(false);
+  const [isFirstQuestion, setIsFirstQuestion] = useState(false);
   const sendQuestion = useCallback(async (q: string) => {
     ignoreResponsesRef.current = false;
     setIsSending(true);
+    
     try {
       const res = await processQuery({ natural_language_query: q, transcript_id: transcriptId ?? undefined });
       if (!transcriptId && res?.transcript_id) {
         const tid = res.transcript_id as string;
         setTranscriptId(tid);
         setDashboardTranscriptId(tid);
+      }
+      
+      // If this is the first question for a new transcript, update the transcript title
+      if (isFirstQuestion && res?.transcript_id) {
+        const currentTranscriptId = res.transcript_id as string;
+        try {
+          await updateTranscript(currentTranscriptId, {
+            title: q.length > 50 ? q.substring(0, 50) + "..." : q
+          });
+          // Refresh transcript list to show updated title
+          if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
+            (window as any).refreshTranscripts();
+          }
+          setIsFirstQuestion(false); // Reset after first question
+        } catch (error) {
+          console.error("Failed to update transcript title:", error);
+        }
       }
     } catch (e) {
       const err = e as { message?: string; response?: { status?: number; statusText?: string; data?: unknown } };
@@ -371,33 +390,56 @@ export default function DashboardPage() {
                           setDashboardTranscriptId(id);
                           const saved = loadChatFromStorage(id);
                           setChat(Array.isArray(saved) ? saved : []);
+                          setIsFirstQuestion(false); // Reset first question flag when switching transcripts
+                          setChatKey(prev => prev + 1); // Force re-render
                           setIsChatOpen(true);
                         }}
                       />
-                      <NewChatButton onNew={() => {
-                        // Get transcriptId before clearing it
-                        const existingTranscriptId = transcriptId;
-                        
-                        // Clear all chat-related state
-                        setChat([]);
-                        setTranscriptId(null);
-                        clearDashboardTranscriptId();
-                        setError(null);
-                        ignoreResponsesRef.current = true; // Keep ignoring until new question
-                        setIsAwaitingAnswer(false);
-                        setChatKey(prev => prev + 1); // Force re-render
-                        
-                        // Clear localStorage for any existing transcript
-                        if (typeof window !== "undefined" && existingTranscriptId) {
-                          localStorage.removeItem(chatStorageKey(existingTranscriptId));
-                        }
-                        
-                        // Force scroll to top of messages
-                        setTimeout(() => {
-                          if (messagesRef.current) {
-                            messagesRef.current.scrollTop = 0;
+                      <NewChatButton onNew={async () => {
+                        try {
+                          // Create a new transcript
+                          const newTranscript = await createTranscript({
+                            title: "New Chat",
+                            metadata: {
+                              created_at: new Date().toISOString(),
+                              source: 'dashboard'
+                            }
+                          });
+                          
+                          // Extract transcript ID from response
+                          const newTranscriptId = (newTranscript as any)?.transcript_id || (newTranscript as any)?.id;
+                          
+                          if (newTranscriptId && typeof newTranscriptId === 'string') {
+                            // Clear all chat-related state
+                            setChat([]);
+                            setTranscriptId(newTranscriptId);
+                            setDashboardTranscriptId(newTranscriptId);
+                            setError(null);
+                            ignoreResponsesRef.current = false; // Allow new responses
+                            setIsAwaitingAnswer(false);
+                            setIsFirstQuestion(true); // Mark as first question for new transcript
+                            setChatKey(prev => prev + 1); // Force re-render
+                            
+                            // Force scroll to top of messages
+                            setTimeout(() => {
+                              if (messagesRef.current) {
+                                messagesRef.current.scrollTop = 0;
+                              }
+                            }, 0);
+                            
+                            showSuccess("New chat started");
+                            
+                            // Refresh transcript list
+                            if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
+                              (window as any).refreshTranscripts();
+                            }
+                          } else {
+                            throw new Error("Failed to create transcript");
                           }
-                        }, 0);
+                        } catch (error) {
+                          console.error("Failed to create new transcript:", error);
+                          setError("Failed to create new chat. Please try again.");
+                        }
                       }} />
                     </div>
                   </div>
@@ -432,6 +474,8 @@ export default function DashboardPage() {
                       setDashboardTranscriptId(id);
                       const saved = loadChatFromStorage(id);
                       setChat(Array.isArray(saved) ? saved : []);
+                      setIsFirstQuestion(false); // Reset first question flag when switching transcripts
+                      setChatKey(prev => prev + 1); // Force re-render
                       setIsHistoryOpen(false);
                       setIsChatOpen(true);
                     }}
@@ -441,6 +485,10 @@ export default function DashboardPage() {
                         setTranscriptId(null);
                         clearDashboardTranscriptId();
                         setChat([]);
+                      }
+                      // Refresh dropdown after deletion
+                      if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
+                        (window as any).refreshTranscripts();
                       }
                     }}
                   />
@@ -605,55 +653,51 @@ export default function DashboardPage() {
                   <div className="mt-2 md:hidden">
                     <button
                       type="button"
-                      onClick={() => {
-                        // Get transcriptId before clearing it
-                        const existingTranscriptId = transcriptId;
-                        console.log('New chat clicked, existing transcriptId:', existingTranscriptId);
-                        
-                        // Clear localStorage first
-                        if (typeof window !== "undefined") {
-                          if (existingTranscriptId) {
-                            console.log('Clearing localStorage for transcriptId:', existingTranscriptId);
-                            localStorage.removeItem(chatStorageKey(existingTranscriptId));
-                          }
-                          
-                          // Also clear any other chat-related localStorage keys
-                          const keys = Object.keys(localStorage);
-                          keys.forEach(key => {
-                            if (key.startsWith('chat_history:')) {
-                              console.log('Clearing additional chat key:', key);
-                              localStorage.removeItem(key);
+                      onClick={async () => {
+                        try {
+                          // Create a new transcript
+                          const newTranscript = await createTranscript({
+                            title: "New Chat",
+                            metadata: {
+                              created_at: new Date().toISOString(),
+                              source: 'dashboard'
                             }
                           });
-                        }
-                        
-                        // Clear all chat-related state in a batch
-                        setChat([]);
-                        setTranscriptId(null);
-                        clearDashboardTranscriptId();
-                        setError(null);
-                        ignoreResponsesRef.current = true; // Keep ignoring until new question
-                        setIsAwaitingAnswer(false);
-                        
-                        // Force complete re-render by incrementing chatKey
-                        setChatKey(prev => prev + 1);
-                        
-                        // Double-check that chat is cleared
-                        setTimeout(() => {
-                          console.log('Chat state after clear:', chat);
-                          if (chat.length > 0) {
-                            console.log('Chat still has items, forcing clear again');
+                          
+                          // Extract transcript ID from response
+                          const newTranscriptId = (newTranscript as any)?.transcript_id || (newTranscript as any)?.id;
+                          
+                          if (newTranscriptId && typeof newTranscriptId === 'string') {
+                            // Clear all chat-related state
                             setChat([]);
-                            setChatKey(prev => prev + 1);
+                            setTranscriptId(newTranscriptId);
+                            setDashboardTranscriptId(newTranscriptId);
+                            setError(null);
+                            ignoreResponsesRef.current = false; // Allow new responses
+                            setIsAwaitingAnswer(false);
+                            setIsFirstQuestion(true); // Mark as first question for new transcript
+                            setChatKey(prev => prev + 1); // Force re-render
+                            
+                            // Force scroll to top of messages
+                            setTimeout(() => {
+                              if (messagesRef.current) {
+                                messagesRef.current.scrollTop = 0;
+                              }
+                            }, 0);
+                            
+                            showSuccess("New chat started");
+                            
+                            // Refresh transcript list
+                            if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
+                              (window as any).refreshTranscripts();
+                            }
+                          } else {
+                            throw new Error("Failed to create transcript");
                           }
-                        }, 50);
-                        
-                        // Force scroll to top of messages after state updates
-                        setTimeout(() => {
-                          if (messagesRef.current) {
-                            messagesRef.current.scrollTop = 0;
-                          }
-                        }, 100);
+                        } catch (error) {
+                          console.error("Failed to create new transcript:", error);
+                          setError("Failed to create new chat. Please try again.");
+                        }
                       }}
                       className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-4 py-2 text-sm"
                       title="Start a new chat"
@@ -938,6 +982,10 @@ function ChatHistoryPanel({
                       const data = (await listTranscripts({ limit: 100 })) as Array<Record<string, unknown>>;
                       setItems(data);
                     } catch {}
+                    // Also refresh the dropdown
+                    if (typeof window !== "undefined" && (window as any).refreshTranscripts) {
+                      (window as any).refreshTranscripts();
+                    }
                   }}
                 >
                   Delete
@@ -953,15 +1001,27 @@ function ChatHistoryPanel({
 
 function TranscriptSelect({ activeTranscriptId, onSelect }: { activeTranscriptId: string | null; onSelect: (id: string, title?: string | null) => void }) {
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  const loadTranscripts = useCallback(async () => {
+    try {
+      const data = (await listTranscripts({ limit: 100 })) as Array<Record<string, unknown>>;
+      setItems(data);
+    } catch (error) {
+      console.error("Failed to load transcripts:", error);
+    }
+  }, []);
+  
   useEffect(() => {
-    let m = true;
-    (async () => {
-      try {
-        const data = (await listTranscripts({ limit: 100 })) as Array<Record<string, unknown>>;
-        if (m) setItems(data);
-      } catch {}
-    })();
-    return () => { m = false; };
+    loadTranscripts();
+  }, [loadTranscripts, refreshKey]);
+  
+  // Expose refresh function globally for new chat creation
+  useEffect(() => {
+    (window as any).refreshTranscripts = () => setRefreshKey(prev => prev + 1);
+    return () => {
+      delete (window as any).refreshTranscripts;
+    };
   }, []);
   const isEmpty = !activeTranscriptId;
   return (
