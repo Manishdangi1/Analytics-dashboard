@@ -17,7 +17,7 @@ export default function TopNav() {
     const token = getAccessToken();
     setIsAuthenticated(!!token);
     setIsLoading(false);
-  }, []);
+  }, [pathname]);
 
   if (pathname === "/login" || pathname === "/register") return null;
   

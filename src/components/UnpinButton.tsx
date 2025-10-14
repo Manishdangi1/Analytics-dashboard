@@ -3,15 +3,19 @@ import { useState } from "react";
 import { unregisterDashboardGraph } from "@/lib/queries";
 import { IconPinnedOff } from "@tabler/icons-react";
 
-export default function UnpinButton({ graphId }: { graphId: string }) {
+export default function UnpinButton({ graphId, onUnpinned }: { graphId: string; onUnpinned?: () => void }) {
   const [isPending, setIsPending] = useState(false);
 
   const handleUnpin = async () => {
     setIsPending(true);
     try {
       await unregisterDashboardGraph(graphId);
-      // Refresh the page to update the dashboard
-      window.location.reload();
+      if (onUnpinned) {
+        onUnpinned();
+      } else {
+        // Refresh the page to update the dashboard
+        window.location.reload();
+      }
     } catch (error) {
       console.error("Failed to unpin graph:", error);
     } finally {

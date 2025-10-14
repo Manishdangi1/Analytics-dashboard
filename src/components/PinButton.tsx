@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { registerDashboardGraph } from "@/lib/queries";
 
-export default function PinButton({ title, figure, html, graph_type }: { title?: string | null; figure?: unknown; html?: string | null; graph_type?: string | null }) {
+export default function PinButton({ title, figure, html, graph_type, onPinned }: { title?: string | null; figure?: unknown; html?: string | null; graph_type?: string | null; onPinned?: () => void }) {
   const [isPending, setIsPending] = useState(false);
 
   const handlePin = async () => {
@@ -15,8 +15,9 @@ export default function PinButton({ title, figure, html, graph_type }: { title?:
         html_content: html || null,
         active: true,
       });
-      // Refresh the page to update the dashboard
-      window.location.reload();
+      if (onPinned) {
+        onPinned();
+      }
     } catch (error) {
       console.error("Failed to pin graph:", error);
     } finally {

@@ -29,6 +29,46 @@ export default function DashboardPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [hasSpeechApi, setHasSpeechApi] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [notice, setNotice] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
+  const ignoreResponsesRef = useRef(false);
+  
+  // Local chat persistence per transcript
+  function chatStorageKey(tid: string) { return `chat_history:${tid}`; }
+  function loadChatFromStorage(tid: string) {
+    try {
+      const raw = localStorage.getItem(chatStorageKey(tid));
+      if (!raw) return [] as Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[] }>;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[] }>;
+      return [];
+    } catch {
+      return [];
+    }
+  }
+  function saveChatToStorage(tid: string, items: Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[] }>) {
+    try {
+      localStorage.setItem(chatStorageKey(tid), JSON.stringify(items.slice(-200)));
+    } catch {}
+  }
+
+  function showSuccess(text: string) {
+    setNotice({ text, type: "success" });
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current);
+    }
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice(null);
+      noticeTimerRef.current = null;
+    }, 1800);
+  }
+
+  // Persist chat for current transcript
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!transcriptId) return;
+    saveChatToStorage(transcriptId, chat);
+  }, [chat, transcriptId]);
   const speechRef = useRef<SpeechRecognition | null>(null);
   const endAfterStopRef = useRef(false);
   const speechTextRef = useRef<string>("");
@@ -61,6 +101,7 @@ export default function DashboardPage() {
 
   const [isSending, setIsSending] = useState(false);
   const sendQuestion = useCallback(async (q: string) => {
+    ignoreResponsesRef.current = false;
     setIsSending(true);
     try {
       const res = await processQuery({ natural_language_query: q, transcript_id: transcriptId ?? undefined });
@@ -197,12 +238,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const bundle = poll.lastReady;
-    if (!bundle) return;
-    if (transcriptId && bundle.transcript_id && bundle.transcript_id !== transcriptId) return;
-    if (!transcriptId && bundle.transcript_id) {
-      setTranscriptId(bundle.transcript_id);
-      setDashboardTranscriptId(bundle.transcript_id);
-    }
+    if (!bundle || !transcriptId) return; // ignore until we know the current transcript
+    if (bundle.transcript_id && bundle.transcript_id !== transcriptId) return;
+    if (ignoreResponsesRef.current) return; // user cancelled current wait
     const description = bundle.description?.description;
     const allGraphs = (bundle.graphs?.graphs as GraphItem[] | undefined) ?? [];
     const filteredGraphs = allGraphs.filter((g) => !!g.html || !!g.figure);
@@ -240,6 +278,14 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen p-6 space-y-6 page-gradient">
+      {notice && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+          <div className="glass-fade-in inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm text-emerald-200 ring-1 ring-emerald-400/20 shadow">
+            <span>✅</span>
+            <span>{notice.text}</span>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4 fade-in-up">
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <div className="flex items-center gap-2">
@@ -293,16 +339,16 @@ export default function DashboardPage() {
 
       {/* Floating Chat Button */}
       {!isChatOpen && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-violet-500/30 to-fuchsia-500/30 blur-lg animate-pulse" />
+        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50">
+          <div className="absolute -inset-1 md:-inset-2 rounded-full bg-gradient-to-r from-violet-500/30 to-fuchsia-500/30 blur-md md:blur-lg animate-pulse" />
           <button
             type="button"
             onClick={() => setIsChatOpen(true)}
             aria-label="Open chat"
             title="Open chat"
-            className="relative inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 ring-1 ring-white/20 shadow-xl hover:from-violet-500 hover:to-fuchsia-500 pressable btn-gradient-animate"
+            className="relative inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 ring-1 ring-white/20 shadow-xl hover:from-violet-500 hover:to-fuchsia-500 pressable btn-gradient-animate"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 md:w-6 md:h-6 text-white">
               <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
             </svg>
           </button>
@@ -313,44 +359,24 @@ export default function DashboardPage() {
       {isChatOpen && (
         <div className="fixed inset-0 z-50" onClick={() => setIsChatOpen(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay-fade" />
-          <div className="absolute bottom-6 right-6 w-[94vw] max-w-4xl chat-pop" onClick={(e) => e.stopPropagation()}>
-            <Card className="bg-neutral-900 border border-white/10 shadow-2xl rounded-2xl">
-              <CardHeader className="bg-white/5">
+          <div className="absolute inset-x-0 bottom-0 md:bottom-6 md:right-6 md:left-auto md:inset-x-auto md:w-[94vw] md:max-w-4xl chat-pop" onClick={(e) => e.stopPropagation()}>
+            <Card className="bg-neutral-900 border border-white/10 shadow-2xl rounded-t-2xl md:rounded-2xl max-h-[90vh] overflow-auto flex flex-col">
+              <CardHeader className="bg-white/5 sticky top-0 z-10">
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-3 w-full">
                     <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-violet-600 text-white shadow">
                       💬
                     </span>
                     <span className="font-semibold text-lg tracking-tight">Chat</span>
-                    <div className="ml-auto flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setIsHistoryOpen((v) => !v)}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-xs hover:bg-white/12 pressable"
-                        title="Chat history"
-                      >
-                        History
-                      </button>
-                      <LiveKitControls
-                        sessionId={lkSessionId}
-                        displayName={lkDisplayName}
-                        onDisplayNameChange={setLkDisplayName}
-                        onStart={async () => {
-                          const res = await livekitCreateSession({ display_name: lkDisplayName || null, transcript_id: transcriptId ?? null });
-                          setLkSessionId(res.session_id);
-                        }}
-                        onEnd={async () => {
-                          if (!lkSessionId) return;
-                          await livekitEndSession(lkSessionId);
-                          setLkSessionId(null);
-                        }}
-                      />
+                    <div className="ml-auto hidden md:flex items-center gap-2">
                       <TranscriptSelect
                         activeTranscriptId={transcriptId}
                         onSelect={(id) => {
                           setTranscriptId(id);
                           setDashboardTranscriptId(id);
-                          setChat([]);
+                          const saved = loadChatFromStorage(id);
+                          setChat(Array.isArray(saved) ? saved : []);
+                          setIsChatOpen(true);
                         }}
                       />
                       <NewChatButton onNew={() => {
@@ -362,6 +388,15 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {/* History toggle */}
+                    <button
+                      type="button"
+                      onClick={() => setIsHistoryOpen((v) => !v)}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-xs hover:bg-white/12 pressable"
+                      title="Chat history"
+                    >
+                      History
+                    </button>
                     <button
                       type="button"
                       onClick={() => setIsChatOpen(false)}
@@ -381,8 +416,10 @@ export default function DashboardPage() {
                     onSelect={async (id) => {
                       setTranscriptId(id);
                       setDashboardTranscriptId(id);
-                      setChat([]);
+                      const saved = loadChatFromStorage(id);
+                      setChat(Array.isArray(saved) ? saved : []);
                       setIsHistoryOpen(false);
+                      setIsChatOpen(true);
                     }}
                     onDelete={async (id) => {
                       await deleteTranscript(id);
@@ -394,9 +431,41 @@ export default function DashboardPage() {
                     }}
                   />
                 )}
-                <div className="space-y-4 max-h-[70vh] overflow-auto pr-1 text-[15px] leading-6 sm:leading-7">
+                <div className="space-y-4 pr-1 text-[15px] leading-6 sm:leading-7">
                   {chat.length === 0 && (
-                    <p className="text-neutral-300">Start by asking a question about your data.</p>
+                    <div className="space-y-3">
+                      <p className="text-neutral-300">Start by asking a question about your data.</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const q = "what is the employee distribution across departments";
+                            setChat((prev) => [...prev, { role: "user", text: q }]);
+                            setError(null);
+                            sendQuestion(q);
+                            setQuestion("");
+                            setIsAwaitingAnswer(true);
+                          }}
+                          className="pressable inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
+                        >
+                          What is the employee distribution across departments
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const q = "what were the sales this year";
+                            setChat((prev) => [...prev, { role: "user", text: q }]);
+                            setError(null);
+                            sendQuestion(q);
+                            setQuestion("");
+                            setIsAwaitingAnswer(true);
+                          }}
+                          className="pressable inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
+                        >
+                          What were the sales this year
+                        </button>
+                      </div>
+                    </div>
                   )}
             {chat.map((m, i) => (
               <div key={i} className={m.role === "user" ? "text-right" : "text-left"}>
@@ -417,7 +486,22 @@ export default function DashboardPage() {
                             .map((g, gi) => (
                               <div key={gi} className="rounded-xl border border-sky-400/20 bg-sky-950/40 p-3 space-y-2 shadow ring-1 ring-sky-400/10">
                         <div className="flex items-center justify-end">
-                          <PinButton title={g.title ?? null} figure={g.figure} html={g.html ?? null} graph_type={g.graph_type ?? null} />
+                          <PinButton
+                            title={g.title ?? null}
+                            figure={g.figure}
+                            html={g.html ?? null}
+                            graph_type={g.graph_type ?? null}
+                            onPinned={() => {
+                              // Reload graphs list without full page refresh
+                              (async () => {
+                                try {
+                                  const res = await listDashboardGraphs({ active_only: true });
+                                  setGraphs(res?.graphs ?? []);
+                                } catch {}
+                              })();
+                              showSuccess("Pinned to dashboard");
+                            }}
+                          />
                         </div>
                         {g.html ? (
                                   <HTMLRender html={g.html} height={480} className="border-sky-400/20" />
@@ -431,11 +515,22 @@ export default function DashboardPage() {
               </div>
             ))}
                   {isAwaitingAnswer && (
-                    <div className="text-left">
+                    <div className="flex items-center gap-3">
                       <div className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 bg-neutral-900 text-neutral-100 ring-1 ring-white/10 shadow-xl">
                         <span className="inline-block w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                         <span>Thinking…</span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          ignoreResponsesRef.current = true;
+                          setIsAwaitingAnswer(false);
+                        }}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
+                        title="Stop waiting for this response"
+                      >
+                        Stop
+                      </button>
                     </div>
                   )}
                   <div ref={chatEndRef} />
@@ -466,53 +561,13 @@ export default function DashboardPage() {
                       setQuestion(e.target.value);
                     }}
                     placeholder="Ask a question about your data..."
-                    className="flex-1 rounded-full border border-white/15 bg-white/8 px-4 py-2 backdrop-blur text-neutral-100 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-violet-600/50 shadow-inner"
+                    className="flex-1 rounded-full border border-white/15 bg-white/8 px-4 py-3 md:py-2 backdrop-blur text-neutral-100 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-violet-600/50 shadow-inner"
                     disabled={isSending}
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!hasSpeechApi || !speechRef.current) return;
-                      (async () => {
-                        if (isRecording) {
-                          endAfterStopRef.current = true;
-                          try { speechRef.current!.stop(); } catch {}
-                          setIsRecording(false);
-                          return;
-                        }
-                        try {
-                          // Ensure a LiveKit session exists when starting mic
-                          if (!lkSessionId) {
-                            const res = await livekitCreateSession({ display_name: lkDisplayName || null, transcript_id: transcriptId ?? null });
-                            setLkSessionId(res.session_id);
-                          }
-                          playBeep(880, 110);
-                          setQuestion("");
-                          setIsRecording(true);
-                          speechRef.current!.start();
-                        } catch (err) {
-                          const msg = (err as { message?: string })?.message || "Could not start voice. Please try again.";
-                          setError(msg);
-                          setIsRecording(false);
-                        }
-                      })();
-                    }}
-                    className={"inline-flex items-center justify-center w-10 h-10 rounded-full border " + (isRecording ? "border-rose-400 bg-rose-500/20 animate-pulse" : "border-white/15 bg-white/8 hover:bg-white/12")}
-                    title={hasSpeechApi ? (isRecording ? "Stop voice" : "Speak your question") : "Voice not supported in this browser"}
-                    disabled={!hasSpeechApi}
-                  >
-                    {isRecording ? (
-                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-rose-400" />
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                        <path d="M10 3a2 2 0 00-2 2v5a2 2 0 104 0V5a2 2 0 00-2-2z" />
-                        <path d="M5 10a5 5 0 0010 0h-1.5a3.5 3.5 0 11-7 0H5z" />
-                      </svg>
-                    )}
-                  </button>
+                  {/* Mic button removed on mobile for simplicity/responsiveness */}
                   <button
                     type="submit"
-                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-60 disabled:cursor-not-allowed px-5 py-2 font-medium shadow pressable btn-gradient-animate"
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-60 disabled:cursor-not-allowed px-5 py-3 md:py-2 font-medium shadow pressable btn-gradient-animate"
                     disabled={isSending || !question.trim()}
                   >
                     {isSending ? (
@@ -530,6 +585,25 @@ export default function DashboardPage() {
                     )}
                   </button>
                 </form>
+              {/* New chat (mobile quick reset) */}
+              <div className="mt-2 md:hidden">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChat([]);
+                    setTranscriptId(null);
+                    clearDashboardTranscriptId();
+                    setError(null);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-4 py-2 text-sm"
+                  title="Start a new chat"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path d="M9 3.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 9 3.5Z" />
+                  </svg>
+                  New chat
+                </button>
+              </div>
                 {error && (
                   <div className="mt-2 text-sm text-red-400">{error}</div>
                 )}
@@ -554,7 +628,15 @@ export default function DashboardPage() {
                   >
                     View
                   </button>
-                  {g.graph_id && <UnpinButton graphId={g.graph_id} />}
+                  {g.graph_id && (
+                    <UnpinButton
+                      graphId={g.graph_id}
+                      onUnpinned={() => {
+                        setGraphs((prev) => prev.filter((x) => x.graph_id !== g.graph_id));
+                        showSuccess("Unpinned from dashboard");
+                      }}
+                    />
+                  )}
                 </div>
               </div>
               {typeof g.row_count === "number" && g.row_count > 0 && (
@@ -564,7 +646,19 @@ export default function DashboardPage() {
             <CardContent>
               {!g.graph_id && (
                 <div className="flex items-center justify-end mb-2">
-                  <PinButton title={g.title} figure={g.figure as unknown} html={g.html_content ?? null} graph_type={g.graph_type ?? null} />
+                  <PinButton
+                    title={g.title}
+                    figure={g.figure as unknown}
+                    html={g.html_content ?? null}
+                    graph_type={g.graph_type ?? null}
+                    onPinned={async () => {
+                      try {
+                        const res = await listDashboardGraphs({ active_only: true });
+                        setGraphs(res?.graphs ?? []);
+                      } catch {}
+                      showSuccess("Pinned to dashboard");
+                    }}
+                  />
                 </div>
               )}
               {g.html_content ? (
@@ -601,7 +695,51 @@ export default function DashboardPage() {
         ))}
       </div>
       {((graphs ?? []).filter((g) => g?.html_content || g?.figure || g?.description).length ?? 0) === 0 && (
-        <p className="text-sm text-neutral-400">No graphs to display yet.</p>
+        <div className="glass-fade-in rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+          <div className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow ring-1 ring-white/20">📌</div>
+          <h3 className="text-lg font-medium tracking-tight">No pinned insights yet</h3>
+          <p className="mt-1 text-sm text-neutral-300">Ask a question and pin your favorite results to build your dashboard.</p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsChatOpen(true)}
+              className="pressable btn-gradient-animate inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-400 hover:from-violet-500 hover:via-fuchsia-400 hover:to-cyan-300 px-4 py-2 text-sm font-medium text-black"
+              title="Open chat"
+            >
+              Open chat
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const q = "what is the employee distribution across departments";
+                setChat((prev) => [...prev, { role: "user", text: q }]);
+                setError(null);
+                sendQuestion(q);
+                setQuestion("");
+                setIsAwaitingAnswer(true);
+                setIsChatOpen(true);
+              }}
+              className="pressable inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
+            >
+              What is the employee distribution across departments
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const q = "what were the sales this year";
+                setChat((prev) => [...prev, { role: "user", text: q }]);
+                setError(null);
+                sendQuestion(q);
+                setQuestion("");
+                setIsAwaitingAnswer(true);
+                setIsChatOpen(true);
+              }}
+              className="pressable inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-3 py-1.5 text-sm"
+            >
+              What were the sales this year
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="flex items-center gap-3">

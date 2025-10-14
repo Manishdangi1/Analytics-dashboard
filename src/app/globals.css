@@ -25,6 +25,9 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
 }
 
+/* Prevent horizontal scrolling across the app */
+html, body { overflow-x: hidden; }
+
 /* Glass morphism helpers */
 .glass-fade-in {
   animation: glassIn 400ms ease both;
