@@ -32,6 +32,8 @@ export default function DashboardPage() {
   const [notice, setNotice] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
   const ignoreResponsesRef = useRef(false);
+  const scrollLockYRef = useRef(0);
+  const [chatKey, setChatKey] = useState(0);
   
   // Local chat persistence per transcript
   function chatStorageKey(tid: string) { return `chat_history:${tid}`; }
@@ -69,6 +71,41 @@ export default function DashboardPage() {
     if (!transcriptId) return;
     saveChatToStorage(transcriptId, chat);
   }, [chat, transcriptId]);
+
+  // Prevent background scroll when chat is open (mobile fix)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const body = document.body as HTMLBodyElement;
+    const html = document.documentElement as HTMLElement;
+    if (isChatOpen) {
+      scrollLockYRef.current = window.scrollY || window.pageYOffset || 0;
+      html.style.overscrollBehavior = "none";
+      html.style.overflow = "hidden";
+      body.style.position = "fixed";
+      body.style.top = `-${scrollLockYRef.current}px`;
+      body.style.width = "100%";
+      body.style.overflow = "hidden";
+    } else {
+      html.style.overflow = "";
+      html.style.overscrollBehavior = "";
+      const y = Math.abs(parseInt(body.style.top || "0", 10)) || 0;
+      body.style.position = "";
+      body.style.top = "";
+      body.style.width = "";
+      body.style.overflow = "";
+      if (y) window.scrollTo(0, y);
+    }
+    return () => {
+      html.style.overflow = "";
+      html.style.overscrollBehavior = "";
+      const y = Math.abs(parseInt(body.style.top || "0", 10)) || 0;
+      body.style.position = "";
+      body.style.top = "";
+      body.style.width = "";
+      body.style.overflow = "";
+      if (y) window.scrollTo(0, y);
+    };
+  }, [isChatOpen]);
   const speechRef = useRef<SpeechRecognition | null>(null);
   const endAfterStopRef = useRef(false);
   const speechTextRef = useRef<string>("");
@@ -133,7 +170,9 @@ export default function DashboardPage() {
       if (notFound) {
         setTranscriptId(null);
         clearDashboardTranscriptId();
-        message = "Previous chat was removed. Starting a new session—please resend your question.";
+        setChat([]);
+        // Don't show error message, just silently start fresh
+        return;
       } else if (status === 500 && !fromMessage && !fromDetail && !fromError) {
         message = "Server error (500). Please try again or contact support.";
       }
@@ -238,24 +277,44 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const bundle = poll.lastReady;
-    if (!bundle || !transcriptId) return; // ignore until we know the current transcript
-    if (bundle.transcript_id && bundle.transcript_id !== transcriptId) return;
-    if (ignoreResponsesRef.current) return; // user cancelled current wait
+    if (!bundle) return;
+    if (!transcriptId && bundle.transcript_id) {
+      setTranscriptId(bundle.transcript_id);
+      setDashboardTranscriptId(bundle.transcript_id);
+    }
+    if (bundle.transcript_id && transcriptId && bundle.transcript_id !== transcriptId) return;
+    if (ignoreResponsesRef.current) {
+      console.log('Ignoring response due to ignoreResponsesRef flag');
+      return; // user cancelled current wait
+    }
     const description = bundle.description?.description;
     const allGraphs = (bundle.graphs?.graphs as GraphItem[] | undefined) ?? [];
     const filteredGraphs = allGraphs.filter((g) => !!g.html || !!g.figure);
     const hasDescription = typeof description === "string" && description.trim().length > 0;
     const hasGraphs = filteredGraphs.length > 0;
     if (hasDescription || hasGraphs) {
-      setChat((prev) => [...prev, { role: "assistant", text: hasDescription ? description : undefined, graphs: hasGraphs ? filteredGraphs : undefined }]);
+      console.log('Adding response to chat:', { hasDescription, hasGraphs, transcriptId });
+      // Stop loader first
+      setIsAwaitingAnswer(false);
+      // Add response with a small delay to show loader stopping before response
+      setTimeout(() => {
+        setChat((prev) => [...prev, { role: "assistant", text: hasDescription ? description : undefined, graphs: hasGraphs ? filteredGraphs : undefined }]);
+      }, 100);
+    } else {
+      // No content returned; stop spinner to avoid hanging UI
       setIsAwaitingAnswer(false);
     }
   }, [poll.lastReady, transcriptId]);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Prefer scrolling the messages container to the bottom to avoid page scroll on mobile
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [chat]);
 
   // Audible chime on assistant response
@@ -279,7 +338,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen p-6 space-y-6 page-gradient">
       {notice && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60]">
           <div className="glass-fade-in inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm text-emerald-200 ring-1 ring-emerald-400/20 shadow">
             <span>✅</span>
             <span>{notice.text}</span>
@@ -359,8 +418,8 @@ export default function DashboardPage() {
       {isChatOpen && (
         <div className="fixed inset-0 z-50" onClick={() => setIsChatOpen(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay-fade" />
-          <div className="absolute inset-x-0 bottom-0 md:bottom-6 md:right-6 md:left-auto md:inset-x-auto md:w-[94vw] md:max-w-4xl chat-pop" onClick={(e) => e.stopPropagation()}>
-            <Card className="bg-neutral-900 border border-white/10 shadow-2xl rounded-t-2xl md:rounded-2xl max-h-[90vh] overflow-auto flex flex-col">
+          <div className="absolute inset-0 md:inset-auto md:bottom-6 md:right-6 md:left-auto md:w-[94vw] md:max-w-4xl chat-pop flex items-end md:block" onClick={(e) => e.stopPropagation()}>
+            <Card className="bg-neutral-900 border border-white/10 shadow-2xl rounded-t-2xl md:rounded-2xl h-[95dvh] md:h-auto md:max-h-[90vh] overflow-hidden flex flex-col w-full mt-2">
               <CardHeader className="bg-white/5 sticky top-0 z-10">
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-3 w-full">
@@ -380,10 +439,29 @@ export default function DashboardPage() {
                         }}
                       />
                       <NewChatButton onNew={() => {
+                        // Get transcriptId before clearing it
+                        const existingTranscriptId = transcriptId;
+                        
+                        // Clear all chat-related state
                         setChat([]);
                         setTranscriptId(null);
                         clearDashboardTranscriptId();
                         setError(null);
+                        ignoreResponsesRef.current = true; // Keep ignoring until new question
+                        setIsAwaitingAnswer(false);
+                        setChatKey(prev => prev + 1); // Force re-render
+                        
+                        // Clear localStorage for any existing transcript
+                        if (typeof window !== "undefined" && existingTranscriptId) {
+                          localStorage.removeItem(chatStorageKey(existingTranscriptId));
+                        }
+                        
+                        // Force scroll to top of messages
+                        setTimeout(() => {
+                          if (messagesRef.current) {
+                            messagesRef.current.scrollTop = 0;
+                          }
+                        }, 0);
                       }} />
                     </div>
                   </div>
@@ -408,7 +486,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 flex flex-col min-h-0">
                 {isHistoryOpen && (
                   <ChatHistoryPanel
                     onClose={() => setIsHistoryOpen(false)}
@@ -431,7 +509,7 @@ export default function DashboardPage() {
                     }}
                   />
                 )}
-                <div className="space-y-4 pr-1 text-[15px] leading-6 sm:leading-7">
+                <div key={chatKey} ref={messagesRef} className="flex-1 space-y-4 overflow-y-auto pr-1 text-[15px] leading-6 sm:leading-7 min-h-0">
                   {chat.length === 0 && (
                     <div className="space-y-3">
                       <p className="text-neutral-300">Start by asking a question about your data.</p>
@@ -534,26 +612,28 @@ export default function DashboardPage() {
                     </div>
                   )}
                   <div ref={chatEndRef} />
-          </div>
-                <form onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (lkSessionId) {
-                    const q = question.trim();
-                    if (!q) return;
-                    setChat((prev) => [...prev, { role: "user", text: q }]);
-                    setQuestion("");
-                    try {
-                      setIsAwaitingAnswer(true);
-                      await livekitQuery(lkSessionId, { question: q, context: null });
-                    } catch (err) {
-                      const msg = (err as { message?: string })?.message || "Voice query failed.";
-                      setError(msg);
-                      setIsAwaitingAnswer(false);
+                </div>
+                {/* Sticky input form at bottom */}
+                <div className="sticky bottom-0 bg-neutral-900 border-t border-white/10 p-4 -mx-4 -mb-4">
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (lkSessionId) {
+                      const q = question.trim();
+                      if (!q) return;
+                      setChat((prev) => [...prev, { role: "user", text: q }]);
+                      setQuestion("");
+                      try {
+                        setIsAwaitingAnswer(true);
+                        await livekitQuery(lkSessionId, { question: q, context: null });
+                      } catch (err) {
+                        const msg = (err as { message?: string })?.message || "Voice query failed.";
+                        setError(msg);
+                        setIsAwaitingAnswer(false);
+                      }
+                      return;
                     }
-                    return;
-                  }
-                  await onAsk(e);
-                }} className="mt-4 flex items-center gap-2">
+                    await onAsk(e);
+                  }} className="flex items-center gap-2">
                   <input
                     value={question}
                     onChange={(e) => {
@@ -584,26 +664,71 @@ export default function DashboardPage() {
                       </>
                     )}
                   </button>
-                </form>
-              {/* New chat (mobile quick reset) */}
-              <div className="mt-2 md:hidden">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChat([]);
-                    setTranscriptId(null);
-                    clearDashboardTranscriptId();
-                    setError(null);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-4 py-2 text-sm"
-                  title="Start a new chat"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                    <path d="M9 3.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 9 3.5Z" />
-                  </svg>
-                  New chat
-                </button>
-              </div>
+                  </form>
+                  {/* New chat (mobile quick reset) */}
+                  <div className="mt-2 md:hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Get transcriptId before clearing it
+                        const existingTranscriptId = transcriptId;
+                        console.log('New chat clicked, existing transcriptId:', existingTranscriptId);
+                        
+                        // Clear localStorage first
+                        if (typeof window !== "undefined") {
+                          if (existingTranscriptId) {
+                            console.log('Clearing localStorage for transcriptId:', existingTranscriptId);
+                            localStorage.removeItem(chatStorageKey(existingTranscriptId));
+                          }
+                          
+                          // Also clear any other chat-related localStorage keys
+                          const keys = Object.keys(localStorage);
+                          keys.forEach(key => {
+                            if (key.startsWith('chat_history:')) {
+                              console.log('Clearing additional chat key:', key);
+                              localStorage.removeItem(key);
+                            }
+                          });
+                        }
+                        
+                        // Clear all chat-related state in a batch
+                        setChat([]);
+                        setTranscriptId(null);
+                        clearDashboardTranscriptId();
+                        setError(null);
+                        ignoreResponsesRef.current = true; // Keep ignoring until new question
+                        setIsAwaitingAnswer(false);
+                        
+                        // Force complete re-render by incrementing chatKey
+                        setChatKey(prev => prev + 1);
+                        
+                        // Double-check that chat is cleared
+                        setTimeout(() => {
+                          console.log('Chat state after clear:', chat);
+                          if (chat.length > 0) {
+                            console.log('Chat still has items, forcing clear again');
+                            setChat([]);
+                            setChatKey(prev => prev + 1);
+                          }
+                        }, 50);
+                        
+                        // Force scroll to top of messages after state updates
+                        setTimeout(() => {
+                          if (messagesRef.current) {
+                            messagesRef.current.scrollTop = 0;
+                          }
+                        }, 100);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 hover:bg-white/12 px-4 py-2 text-sm"
+                      title="Start a new chat"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                        <path d="M9 3.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 9 3.5Z" />
+                      </svg>
+                      New chat
+                    </button>
+                  </div>
+                </div>
                 {error && (
                   <div className="mt-2 text-sm text-red-400">{error}</div>
                 )}
