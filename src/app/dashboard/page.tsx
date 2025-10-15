@@ -1,9 +1,8 @@
 "use client";
-import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, livekitQuery, authMe } from "@/lib/queries";
+import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, authMe } from "@/lib/queries";
 import { extractTranscriptId } from "@/lib/ids";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryResultsPoll } from "@/hooks/useQueryResultsPoll";
-import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { HTMLRender } from "@/components/ui/HTMLRender";
 import ChartRenderer from "@/components/ui/ChartRenderer";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
@@ -11,6 +10,7 @@ import ErrorNotification from "@/components/ui/ErrorNotification";
 import PinButton from "@/components/PinButton";
 import UnpinButton from "@/components/UnpinButton";
 import VoiceChat from "@/components/VoiceChat";
+import { useTheme } from "@/contexts/ThemeContext";
 import type { components } from "@/types/api";
 import { getDashboardTranscriptId, setDashboardTranscriptId, clearDashboardTranscriptId } from "@/lib/dashboardSession";
 import { getAccessToken, clearAccessToken } from "@/lib/auth";
@@ -19,6 +19,7 @@ type GraphItem = components["schemas"]["GraphItem"];
 type DashboardGraph = components["schemas"]["DashboardGraphMetadataModel"];
 
 export default function DashboardPage() {
+  const { theme } = useTheme();
   const [question, setQuestion] = useState("");
   const [transcriptId, setTranscriptId] = useState<string | null>(getDashboardTranscriptId());
   const [chat, setChat] = useState<Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[]; userQuestion?: string }>>([]);
@@ -51,14 +52,11 @@ export default function DashboardPage() {
     }
     return '1fr';
   };
-  const [expandedGraph, setExpandedGraph] = useState<DashboardGraph | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [lkSessionId] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [notice, setNotice] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
   const ignoreResponsesRef = useRef(false);
-  const scrollLockYRef = useRef(0);
   const [chatKey, setChatKey] = useState(0);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -66,7 +64,6 @@ export default function DashboardPage() {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [responseAdded, setResponseAdded] = useState(false);
   const [currentUserQuestion, setCurrentUserQuestion] = useState<string | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
   
   // Local chat persistence per transcript
@@ -133,7 +130,7 @@ export default function DashboardPage() {
           const userData = await Promise.race([authMe(), timeoutPromise]);
           // Extract user information from API response
           // The API returns user data nested under 'user' property
-          const user = (userData as any)?.user;
+          const user = (userData as { user?: { email?: string; name?: string; display_name?: string } })?.user;
           const email = user?.email;
           const name = user?.name;
           const displayName = user?.display_name;
@@ -172,7 +169,6 @@ export default function DashboardPage() {
   }, []);
 
 
-  const [isSending, setIsSending] = useState(false);
   const [isFirstQuestion, setIsFirstQuestion] = useState(false);
 
   // Voice chat handlers
@@ -196,8 +192,8 @@ export default function DashboardPage() {
     setError(error);
   }, []);
 
-  const handleSpeakingChange = useCallback((speaking: boolean) => {
-    setIsSpeaking(speaking);
+  const handleSpeakingChange = useCallback((_speaking: boolean) => {
+    // Handle speaking change if needed
   }, []);
 
   const handleInterimTranscript = useCallback((text: string) => {
@@ -205,7 +201,7 @@ export default function DashboardPage() {
   }, []);
 
   // Text-to-speech for AI responses (LiveKit TTS)
-  const speakResponse = useCallback((text: string) => {
+  const speakResponse = useCallback((_text: string) => {
     if (isVoiceEnabled) {
       // LiveKit will handle TTS through the voice chat component
       // The actual TTS is handled by the VoiceChat component's LiveKit integration
@@ -406,14 +402,26 @@ export default function DashboardPage() {
 
   return (
     <ErrorBoundary>
-      <div className="dashboard-container page-gradient flex flex-col lg:flex-row">
+      <div className={`dashboard-container flex flex-col lg:flex-row ${
+        theme === "light" 
+          ? "bg-gradient-to-br from-white via-slate-50 to-gray-100" 
+          : "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
+      }`}>
       {/* Main Content Area - Left Side */}
       <div className="dashboard-main-content lg:max-w-[calc(100%-600px)]">
         <div className="dashboard-content p-6 space-y-6 auto-hide-scrollbar scroll-smooth">
           {notice && (
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60]">
-              <div className="glass-fade-in inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm text-emerald-200 ring-1 ring-emerald-400/20 shadow">
-                <span>✅</span>
+            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-bounce">
+              <div className={`glass-fade-in inline-flex items-center gap-3 rounded-2xl px-6 py-4 text-sm font-semibold shadow-2xl backdrop-blur-xl ${
+                notice.type === "success" 
+                  ? theme === "light"
+                    ? "bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-300 text-emerald-800 ring-2 ring-emerald-200/50"
+                    : "bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/40 text-emerald-200 ring-1 ring-emerald-400/30"
+                  : theme === "light"
+                    ? "bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300 text-red-800 ring-2 ring-red-200/50"
+                    : "bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-400/40 text-red-200 ring-1 ring-red-400/30"
+              }`}>
+                <span className="text-lg">{notice.type === "success" ? "✅" : "❌"}</span>
                 <span>{notice.text}</span>
               </div>
             </div>
@@ -422,21 +430,25 @@ export default function DashboardPage() {
           {/* Enhanced Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 fade-in-up">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-r from-primary to-accent flex items-center justify-center indus-glow hover-scale group">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-xl shadow-blue-500/30 hover-scale group">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform">
                   <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
                 </svg>
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent">Analytics Dashboard</h1>
-                <p className="text-slate-400 text-sm hidden sm:block">Real-time insights and data visualizations</p>
+                <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${
+                  theme === "light"
+                    ? "bg-gradient-to-r from-slate-900 via-blue-800 to-purple-800 bg-clip-text text-transparent"
+                    : "bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent"
+                }`}>Analytics Dashboard</h1>
+                <p className={theme === "light" ? "text-slate-700 text-sm hidden sm:block font-medium" : "text-slate-400 text-sm hidden sm:block"}>Real-time insights and data visualizations</p>
               </div>
             </div>
             
             <div className="flex items-center gap-4">
               {/* Enhanced Grid Controls */}
               <div className="hidden sm:flex items-center gap-1 text-xs">
-                <span className="text-slate-400">Layout</span>
+                <span className={theme === "light" ? "text-slate-700 font-semibold" : "text-slate-400"}>Layout</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -445,7 +457,11 @@ export default function DashboardPage() {
                   }}
                   className={
                     "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
-                    (gridCols === 1 ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30" : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30")
+                    (gridCols === 1 
+                      ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
+                      : theme === "light"
+                      ? "bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-600 text-slate-700 shadow-sm"
+                      : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30 text-slate-400")
                   }
                   title="1 column"
                 >
@@ -461,7 +477,11 @@ export default function DashboardPage() {
                   }}
                   className={
                     "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
-                    (gridCols === 2 ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30" : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30")
+                    (gridCols === 2 
+                      ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
+                      : theme === "light"
+                      ? "bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-600 text-slate-700 shadow-sm"
+                      : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30 text-slate-400")
                   }
                   title="2 columns"
                 >
@@ -478,7 +498,11 @@ export default function DashboardPage() {
                   }}
                   className={
                     "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
-                    (gridCols === 3 ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30" : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30")
+                    (gridCols === 3 
+                      ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
+                      : theme === "light"
+                      ? "bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-600 text-slate-700 shadow-sm"
+                      : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30 text-slate-400")
                   }
                   title="3 columns"
                 >
@@ -492,13 +516,20 @@ export default function DashboardPage() {
               
               {/* Enhanced User Info and Actions */}
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-3 py-2 indus-card rounded-lg hover-lift group">
+                {/* Theme Toggle */}
+                {/* <ThemeToggle /> */}
+                
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg hover-lift group ${
+                  theme === "light" 
+                    ? "bg-slate-50 border border-slate-300 shadow-sm" 
+                    : "indus-card"
+                }`}>
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/30">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <span className="text-sm text-white font-medium">
+                  <span className={`text-sm font-medium ${theme === "light" ? "text-slate-800" : "text-white"}`}>
                     {isLoadingUser ? (
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 border border-white/30 border-t-transparent rounded-full animate-spin" />
@@ -514,13 +545,19 @@ export default function DashboardPage() {
                     clearAccessToken();
                     if (typeof window !== "undefined") window.location.href = "/login";
                   }}
-                  className="flex items-center gap-2 px-3 py-2 indus-card rounded-lg hover:bg-white/10 transition-all pressable hover-glow group"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all pressable hover-glow group ${
+                    theme === "light"
+                      ? "bg-slate-50 border border-slate-300 hover:bg-red-50 hover:border-red-400 shadow-sm"
+                      : "indus-card hover:bg-white/10"
+                  }`}
                   title="Logout"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-neutral-400 group-hover:text-red-400 group-hover:translate-x-1 transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 group-hover:text-red-600 group-hover:translate-x-1 transition-all ${
+                    theme === "light" ? "text-slate-600" : "text-neutral-400"
+                  }`}>
                     <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-sm text-neutral-400 group-hover:text-red-400 transition-colors">Logout</span>
+                  <span className={`text-sm group-hover:text-red-600 transition-colors ${theme === "light" ? "text-slate-700 font-medium" : "text-neutral-400"}`}>Logout</span>
                 </button>
               </div>
             </div>
@@ -531,10 +568,14 @@ export default function DashboardPage() {
           <div className="fade-in-up">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <h2 className="text-xl font-semibold text-gray-100">Visualizations</h2>
+                <h2 className={`text-xl font-semibold ${theme === "light" ? "text-slate-900" : "text-gray-100"}`}>Visualizations</h2>
                 <div className="w-8 h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
-                <span className="text-xs text-slate-400 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50">
-                  <span className="text-blue-400 font-semibold">{gridCols}</span> {gridCols === 1 ? 'Column' : 'Columns'}
+                <span className={`text-xs px-3 py-1.5 rounded-full border ${
+                  theme === "light"
+                    ? "text-slate-700 bg-slate-50 border-slate-300 shadow-sm font-medium"
+                    : "text-slate-400 bg-slate-800/60 border-slate-700/50"
+                }`}>
+                  <span className={theme === "light" ? "text-blue-700 font-bold" : "text-blue-400 font-semibold"}>{gridCols}</span> {gridCols === 1 ? 'Column' : 'Columns'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -650,13 +691,13 @@ export default function DashboardPage() {
                   <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Try asking</p>
                   <div className="flex flex-wrap justify-center gap-2">
                     <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
-                      "Show me sales trends"
+                      &quot;Show me sales trends&quot;
                     </span>
                     <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
-                      "Top performing products"
+                      &quot;Top performing products&quot;
                     </span>
                     <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
-                      "Revenue by month"
+                      &quot;Revenue by month&quot;
                     </span>
                   </div>
                 </div>
@@ -771,14 +812,14 @@ export default function DashboardPage() {
                     {/* Content Area - Flexible height */}
                     <div className="flex-1 px-6 pb-4">
                       <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
-                        {(graph as any).html_content || (graph as any).html ? (
+                        {(graph as { html_content?: string; html?: string }).html_content || (graph as { html_content?: string; html?: string }).html ? (
                           <div className="w-full h-full p-4">
-                            <HTMLRender html={(graph as any).html_content || (graph as any).html} />
+                            <HTMLRender html={(graph as { html_content?: string; html?: string }).html_content || (graph as { html_content?: string; html?: string }).html || ""} />
                           </div>
-                        ) : (graph as any).data ? (
+                        ) : (graph as { data?: unknown }).data ? (
                           <div className="w-full h-full p-4">
                             <ChartRenderer 
-                              data={(graph as any).data} 
+                              data={(graph as { data?: unknown }).data} 
                               type={graph.graph_type || 'bar'} 
                               title={graph.title || undefined}
                               className="w-full h-full"
@@ -900,7 +941,7 @@ export default function DashboardPage() {
           <div className="px-4 pb-4">
             <ChatHistoryPanel
               activeTranscriptId={transcriptId}
-              onSelect={async (id, title) => {
+              onSelect={async (id, _title) => {
                 setTranscriptId(id);
                 setDashboardTranscriptId(id);
                 const saved = loadChatFromStorage(id);
@@ -912,6 +953,10 @@ export default function DashboardPage() {
               onDelete={async (id) => {
                 try {
                   await deleteTranscript(id);
+                  
+                  // Show success message immediately
+                  showSuccess("Chat deleted successfully!");
+                  
                   if (transcriptId === id) {
                     // If we're deleting the current transcript, create a new one
                     const newTranscript = await createTranscript({
@@ -927,8 +972,11 @@ export default function DashboardPage() {
                       setChatKey(prev => prev + 1);
                     }
                   }
-                  // Refresh the history panel
-                  (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts?.();
+                  
+                  // Refresh the history panel immediately
+                  if (typeof window !== "undefined" && (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts) {
+                    (window as unknown as { refreshTranscripts: () => void }).refreshTranscripts();
+                  }
                 } catch (error) {
                   console.error("Failed to delete transcript:", error);
                   setError("Failed to delete chat. Please try again.");
@@ -974,15 +1022,25 @@ export default function DashboardPage() {
                     <div className="space-y-3 max-w-[95%]">
                       {/* Message Content - Show text only if there are no graphs */}
                       {item.text && item.text.trim() && (!item.graphs || item.graphs.length === 0) && (
-                        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/50 text-white rounded-2xl px-5 py-3.5 backdrop-blur-md shadow-xl">
+                        <div className={`rounded-2xl px-5 py-3.5 backdrop-blur-md shadow-xl ${
+                          theme === "light"
+                            ? "bg-slate-50 border-2 border-slate-300"
+                            : "bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/50"
+                        }`}>
                           <div className="flex items-start justify-between gap-3">
-                            <div className="text-[15px] leading-relaxed text-gray-100 flex-1 font-normal">
+                            <div className={`text-[15px] leading-relaxed flex-1 font-normal ${
+                              theme === "light" ? "text-slate-900" : "text-gray-100"
+                            }`}>
                               <HTMLRender html={item.text} isTextContent={true} />
                             </div>
                             {isVoiceEnabled && (
                               <button
                                 onClick={() => speakResponse(item.text || "")}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all duration-200 flex-shrink-0"
+                                className={`p-1.5 rounded-lg transition-all duration-200 flex-shrink-0 ${
+                                  theme === "light"
+                                    ? "text-slate-600 hover:text-emerald-700 hover:bg-emerald-100 border border-slate-200"
+                                    : "text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                }`}
                                 title="Speak response"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -999,20 +1057,36 @@ export default function DashboardPage() {
                       {item.graphs && item.graphs.length > 0 && (
                         <div className="space-y-3">
                           {item.graphs.map((graph, j) => (
-                            <div key={j} className="bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-slate-700/60 rounded-2xl overflow-hidden backdrop-blur-md shadow-2xl">
+                            <div key={j} className={`rounded-2xl overflow-hidden backdrop-blur-md shadow-2xl ${
+                              theme === "light"
+                                ? "bg-white border-2 border-slate-300"
+                                : "bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-slate-700/60"
+                            }`}>
                               {/* Graph Header */}
-                              <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-transparent">
+                              <div className={`flex items-center justify-between p-4 border-b ${
+                                theme === "light"
+                                  ? "border-slate-200 bg-gradient-to-r from-slate-50 to-transparent"
+                                  : "border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-transparent"
+                              }`}>
                                 <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-blue-500/30">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-400">
+                                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border ${
+                                    theme === "light" ? "border-blue-600/40" : "border-blue-500/30"
+                                  }`}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 ${
+                                      theme === "light" ? "text-blue-700" : "text-blue-400"
+                                    }`}>
                                       <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                                     </svg>
                                   </div>
                                   <div>
-                                    <span className="text-[15px] font-semibold text-gray-100">
+                                    <span className={`text-[15px] font-semibold ${
+                                      theme === "light" ? "text-slate-900" : "text-gray-100"
+                                    }`}>
                                       {item.userQuestion || graph.title || `Chart ${j + 1}`}
                                     </span>
-                                    <p className="text-xs text-slate-400 font-medium mt-0.5">
+                                    <p className={`text-xs font-medium mt-0.5 ${
+                                      theme === "light" ? "text-slate-700" : "text-slate-400"
+                                    }`}>
                                       {graph.graph_type || 'Data visualization'}
                                     </p>
                                   </div>
@@ -1036,17 +1110,17 @@ export default function DashboardPage() {
                                     <HTMLRender html={graph.html} />
                                   </div>
                                 )}
-                                {!graph.html && (graph as any).data && (
+                                {!graph.html && (graph as { data?: unknown }).data && (
                                   <div className="w-full h-full min-h-[300px]">
                                     <ChartRenderer 
-                                      data={(graph as any).data} 
+                                      data={(graph as { data?: unknown }).data} 
                                       type={graph.graph_type || 'bar'} 
                                       title={graph.title || undefined}
                                       className="w-full h-full"
                                     />
                                   </div>
                                 )}
-                                {!graph.html && !(graph as any).data && (
+                                {!graph.html && !(graph as { data?: unknown }).data && (
                                   <div className="w-full h-full min-h-[300px] flex items-center justify-center">
                                     <div className="text-center text-neutral-400">
                                       <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-3">
@@ -1133,7 +1207,11 @@ export default function DashboardPage() {
         </div>
 
         {/* Enhanced Chat Input */}
-        <div className="flex-shrink-0 p-4 border-t border-slate-700/50 bg-gradient-to-b from-slate-900/80 to-slate-950/90 backdrop-blur-md">
+        <div className={`flex-shrink-0 p-4 border-t backdrop-blur-md ${
+          theme === "light"
+            ? "border-slate-300 bg-gradient-to-b from-slate-50/90 to-white/95 shadow-lg"
+            : "border-slate-700/50 bg-gradient-to-b from-slate-900/80 to-slate-950/90"
+        }`}>
           <form onSubmit={onAsk} className="space-y-3">
             <div className="flex items-end gap-3">
               <div className="flex-1 relative group">
@@ -1150,7 +1228,11 @@ export default function DashboardPage() {
                     }
                   }}
                   placeholder="Ask a question about your data..."
-                  className="w-full px-5 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl text-gray-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 pr-12 hover:bg-slate-800/80 text-[15px] resize-none min-h-[52px] max-h-32 group-hover:border-blue-500/30 no-scrollbar font-normal"
+                  className={`w-full px-5 py-3.5 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 pr-12 text-[15px] resize-none min-h-[52px] max-h-32 group-hover:border-blue-500/30 no-scrollbar font-normal ${
+                    theme === "light"
+                      ? "bg-white border-2 border-slate-300 text-slate-900 placeholder-slate-500 hover:border-blue-500 shadow-sm"
+                      : "bg-slate-800/60 border-slate-700/60 text-gray-100 placeholder-slate-400 hover:bg-slate-800/80"
+                  }`}
                   rows={1}
                   style={{
                     height: 'auto',
@@ -1164,7 +1246,9 @@ export default function DashboardPage() {
                   }}
                 />
                 <div className="absolute right-4 bottom-4 group-hover:scale-110 transition-transform">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 group-hover:text-blue-600 transition-colors ${
+                    theme === "light" ? "text-slate-500" : "text-slate-500"
+                  }`}>
                     <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                   </svg>
                 </div>
@@ -1189,43 +1273,65 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setQuestion("Show me sales trends for the last quarter")}
-                className="px-3.5 py-2 text-[13px] bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 hover:border-blue-500/30 rounded-xl text-slate-300 hover:text-gray-100 transition-all duration-200 font-medium pressable hover-scale group"
+                className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
+                  theme === "light"
+                    ? "bg-slate-50 border-slate-300 hover:bg-blue-50 hover:border-blue-500 text-slate-700 hover:text-blue-800 shadow-sm"
+                    : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-blue-500/30 text-slate-300 hover:text-gray-100"
+                }`}
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block"> Sales Trends</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Sales Trends</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuestion("What are the top performing products?")}
-                className="px-3.5 py-2 text-[13px] bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 hover:border-purple-500/30 rounded-xl text-slate-300 hover:text-gray-100 transition-all duration-200 font-medium pressable hover-scale group"
+                className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
+                  theme === "light"
+                    ? "bg-slate-50 border-slate-300 hover:bg-purple-50 hover:border-purple-500 text-slate-700 hover:text-purple-800 shadow-sm"
+                    : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-purple-500/30 text-slate-300 hover:text-gray-100"
+                }`}
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block"> Top Products</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Top Products</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuestion("Create a pie chart of customer segments")}
-                className="px-3.5 py-2 text-[13px] bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 hover:border-teal-500/30 rounded-xl text-slate-300 hover:text-gray-100 transition-all duration-200 font-medium pressable hover-scale group"
+                className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
+                  theme === "light"
+                    ? "bg-slate-50 border-slate-300 hover:bg-teal-50 hover:border-teal-500 text-slate-700 hover:text-teal-800 shadow-sm"
+                    : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-teal-500/30 text-slate-300 hover:text-gray-100"
+                }`}
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block"> Customer Segments</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Customer Segments</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuestion("Show revenue by month")}
-                className="px-3.5 py-2 text-[13px] bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 hover:border-emerald-500/30 rounded-xl text-slate-300 hover:text-gray-100 transition-all duration-200 font-medium pressable hover-scale group"
+                className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
+                  theme === "light"
+                    ? "bg-slate-50 border-slate-300 hover:bg-emerald-50 hover:border-emerald-500 text-slate-700 hover:text-emerald-800 shadow-sm"
+                    : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-emerald-500/30 text-slate-300 hover:text-gray-100"
+                }`}
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block"> Revenue Analysis</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Revenue Analysis</span>
               </button>
             </div>
           </form>
           
           {error && (
-            <div className="mt-3 p-4 bg-gradient-to-r from-red-500/15 to-red-600/15 border border-red-500/30 rounded-xl backdrop-blur-sm shadow-lg">
+            <div className={`mt-3 p-4 rounded-xl backdrop-blur-sm shadow-lg ${
+              theme === "light"
+                ? "bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300"
+                : "bg-gradient-to-r from-red-500/15 to-red-600/15 border border-red-500/30"
+            }`}>
               <div className="flex items-center gap-3">
                 <div className="flex-shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-red-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 ${
+                    theme === "light" ? "text-red-600" : "text-red-400"
+                  }`}>
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <p className="text-[14px] text-red-300 font-medium flex-1">{error}</p>
+                <p className={`text-[14px] font-medium flex-1 ${theme === "light" ? "text-red-800" : "text-red-300"}`}>{error}</p>
               </div>
             </div>
           )}
@@ -1256,18 +1362,40 @@ function ChatHistoryPanel({
 }) {
   const [items, setItems] = useState<Array<{ id?: string; title?: string | null }>>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const loadTranscripts = useCallback(async () => {
+    try {
+      const data = await listTranscripts({});
+      setItems(data);
+    } catch (error) {
+      console.error("Failed to load transcripts:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let m = true;
-    (async () => {
-      try {
-        const data = await listTranscripts({});
-        if (m) setItems(data);
-      } finally {
-        if (m) setLoading(false);
+    loadTranscripts();
+  }, [loadTranscripts, refreshKey]);
+
+  useEffect(() => {
+    // Listen for global refresh events
+    const handleRefresh = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+
+    // Set up global refresh listener
+    if (typeof window !== "undefined") {
+      (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts = handleRefresh;
+    }
+
+    return () => {
+      // Clean up global listener
+      if (typeof window !== "undefined") {
+        delete (window as unknown as { refreshTranscripts?: () => void }).refreshTranscripts;
       }
-    })();
-    return () => { m = false; };
+    };
   }, []);
   return (
     <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3">
@@ -1346,13 +1474,16 @@ function ChatHistoryPanel({
   return (
     <select
       className={
-        "inline-block text-sm rounded-full border px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50 bg-gray-800 text-white " +
+        "inline-block text-sm rounded-full border px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50 bg-gray-800 text-white max-w-[200px] min-w-[150px] " +
         (isEmpty ? "border-white/50" : "border-white/40")
       }
       style={{ 
         backgroundColor: '#1f2937', 
         color: 'white',
-        borderColor: 'rgba(255, 255, 255, 0.2)'
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        width: '200px',
+        maxWidth: '200px',
+        minWidth: '150px'
       }}
       value={activeTranscriptId ?? "__placeholder__"}
       onChange={(e) => {
@@ -1369,8 +1500,8 @@ function ChatHistoryPanel({
         const title = (t as { title?: string | null })?.title ?? null;
         if (!id) return null;
         return (
-          <option key={id || i} value={id}>
-            {(title ?? "Untitled").slice(0, 40)}
+          <option key={id || i} value={id} title={title ?? "Untitled"}>
+            {(title ?? "Untitled").length > 30 ? `${(title ?? "Untitled").slice(0, 30)}...` : (title ?? "Untitled")}
           </option>
         );
       })}

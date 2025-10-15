@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-
 export default function RegisterPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
