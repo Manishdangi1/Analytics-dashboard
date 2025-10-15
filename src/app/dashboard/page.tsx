@@ -25,6 +25,32 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
   const [gridCols, setGridCols] = useState<1 | 2 | 3>(2);
+  const [windowWidth, setWindowWidth] = useState(0);
+
+  // Debug grid state changes
+  useEffect(() => {
+    console.log('Grid columns changed to:', gridCols);
+  }, [gridCols]);
+
+  // Track window width for responsive grid
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Get responsive grid columns
+  const getGridColumns = () => {
+    if (gridCols === 1) return '1fr';
+    if (gridCols === 2) return windowWidth >= 1024 ? 'repeat(2, 1fr)' : '1fr';
+    if (gridCols === 3) {
+      if (windowWidth >= 1280) return 'repeat(3, 1fr)';
+      if (windowWidth >= 1024) return 'repeat(2, 1fr)';
+      return '1fr';
+    }
+    return '1fr';
+  };
   const [expandedGraph, setExpandedGraph] = useState<DashboardGraph | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [lkSessionId] = useState<string | null>(null);
@@ -40,6 +66,8 @@ export default function DashboardPage() {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [responseAdded, setResponseAdded] = useState(false);
   const [currentUserQuestion, setCurrentUserQuestion] = useState<string | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
   
   // Local chat persistence per transcript
   function chatStorageKey(tid: string) { return `chat_history:${tid}`; }
@@ -168,9 +196,26 @@ export default function DashboardPage() {
     setError(error);
   }, []);
 
+  const handleSpeakingChange = useCallback((speaking: boolean) => {
+    setIsSpeaking(speaking);
+  }, []);
+
+  const handleInterimTranscript = useCallback((text: string) => {
+    setInterimTranscript(text);
+  }, []);
+
+  // Text-to-speech for AI responses (LiveKit TTS)
+  const speakResponse = useCallback((text: string) => {
+    if (isVoiceEnabled) {
+      // LiveKit will handle TTS through the voice chat component
+      // The actual TTS is handled by the VoiceChat component's LiveKit integration
+    }
+  }, [isVoiceEnabled]);
+
   const toggleVoiceChat = useCallback(() => {
     setIsVoiceEnabled(!isVoiceEnabled);
   }, [isVoiceEnabled]);
+
   const sendQuestion = useCallback(async (q: string) => {
     ignoreResponsesRef.current = false;
     setIsSending(true);
@@ -292,6 +337,11 @@ export default function DashboardPage() {
       setChat((prev) => [...prev, { role: "assistant", text: hasDescription ? description : undefined, graphs: hasGraphs ? filteredGraphs : undefined, userQuestion: currentUserQuestion || undefined }]);
       // Mark that response was added
       setResponseAdded(true);
+      
+      // Auto-speak the response if voice chat is enabled and there's text content
+      if (isVoiceEnabled && hasDescription && description) {
+        speakResponse(description);
+      }
       // Clear the current user question
       setCurrentUserQuestion(null);
     } else {
@@ -330,13 +380,25 @@ export default function DashboardPage() {
     // This effect is toggled off in the poll handler when content arrives
   }, [isAwaitingAnswer]);
 
-  // Show loading while checking authentication
+  // Enhanced loading while checking authentication
   if (isCheckingAuth) {
     return (
       <div className="h-screen flex items-center justify-center page-gradient">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white/70">Loading...</p>
+        <div className="text-center space-y-6">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-white/20 mx-auto"></div>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full border-4 border-transparent border-t-primary animate-spin"></div>
+            <div className="absolute top-1 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full border-4 border-transparent border-t-accent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-white indus-text-gradient">Loading Dashboard</h3>
+            <p className="text-white/70">Preparing your analytics workspace...</p>
+          </div>
+          <div className="flex justify-center space-x-1">
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-success rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
         </div>
       </div>
     );
@@ -344,10 +406,10 @@ export default function DashboardPage() {
 
   return (
     <ErrorBoundary>
-      <div className="h-screen page-gradient overflow-hidden flex flex-col lg:flex-row">
+      <div className="dashboard-container page-gradient flex flex-col lg:flex-row">
       {/* Main Content Area - Left Side */}
-      <div className="flex-1 flex flex-col lg:max-w-[calc(100%-600px)]">
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="dashboard-main-content lg:max-w-[calc(100%-600px)]">
+        <div className="dashboard-content p-6 space-y-6 auto-hide-scrollbar scroll-smooth">
           {notice && (
             <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60]">
               <div className="glass-fade-in inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm text-emerald-200 ring-1 ring-emerald-400/20 shadow">
@@ -357,11 +419,11 @@ export default function DashboardPage() {
             </div>
           )}
           
-          {/* Header Section */}
+          {/* Enhanced Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 fade-in-up">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-r from-primary to-accent flex items-center justify-center indus-glow">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 sm:w-6 sm:h-6 text-white">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-r from-primary to-accent flex items-center justify-center indus-glow hover-scale group">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform">
                   <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
                 </svg>
               </div>
@@ -372,14 +434,17 @@ export default function DashboardPage() {
             </div>
             
             <div className="flex items-center gap-4">
-              {/* Grid Controls */}
+              {/* Enhanced Grid Controls */}
               <div className="hidden sm:flex items-center gap-1 text-xs">
                 <span className="text-neutral-400">Layout</span>
                 <button
                   type="button"
-                  onClick={() => setGridCols(1)}
+                  onClick={() => {
+                    console.log('Setting grid to 1 column');
+                    setGridCols(1);
+                  }}
                   className={
-                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
+                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
                     (gridCols === 1 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
                   }
                   title="1 column"
@@ -390,9 +455,12 @@ export default function DashboardPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setGridCols(2)}
+                  onClick={() => {
+                    console.log('Setting grid to 2 columns');
+                    setGridCols(2);
+                  }}
                   className={
-                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
+                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
                     (gridCols === 2 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
                   }
                   title="2 columns"
@@ -404,9 +472,12 @@ export default function DashboardPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setGridCols(3)}
+                  onClick={() => {
+                    console.log('Setting grid to 3 columns');
+                    setGridCols(3);
+                  }}
                   className={
-                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all " +
+                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
                     (gridCols === 3 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
                   }
                   title="3 columns"
@@ -419,10 +490,10 @@ export default function DashboardPage() {
                 </button>
               </div>
               
-              {/* User Info and Actions */}
+              {/* Enhanced User Info and Actions */}
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-3 py-2 indus-card rounded-lg">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
+                <div className="flex items-center gap-2 px-3 py-2 indus-card rounded-lg hover-lift group">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center group-hover:scale-110 transition-transform">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                     </svg>
@@ -443,46 +514,73 @@ export default function DashboardPage() {
                     clearAccessToken();
                     if (typeof window !== "undefined") window.location.href = "/login";
                   }}
-                  className="flex items-center gap-2 px-3 py-2 indus-card rounded-lg hover:bg-white/10 transition-all pressable"
+                  className="flex items-center gap-2 px-3 py-2 indus-card rounded-lg hover:bg-white/10 transition-all pressable hover-glow group"
                   title="Logout"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-neutral-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-neutral-400 group-hover:text-red-400 group-hover:translate-x-1 transition-all">
                     <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-sm text-neutral-400">Logout</span>
+                  <span className="text-sm text-neutral-400 group-hover:text-red-400 transition-colors">Logout</span>
                 </button>
               </div>
             </div>
           </div>
 
 
-          {/* Dashboard Graphs Grid */}
+          {/* Enhanced Dashboard Graphs Grid */}
           <div className="fade-in-up">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-white">Visualizations</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold text-white">Visualizations</h2>
+                <div className="w-8 h-1 bg-gradient-to-r from-primary to-accent rounded-full" />
+                <span className="text-xs text-neutral-400 bg-white/5 px-2 py-1 rounded-full">
+                  {gridCols === 1 ? '1 Column' : gridCols === 2 ? '2 Columns' : '3 Columns'} 
+                  <span className="ml-1 text-primary">({getGridColumns()})</span>
+                </span>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={loadGraphs}
                   disabled={isFetching}
-                  className="flex items-center gap-2 px-3 py-2 text-sm indus-card rounded-lg hover:bg-white/10 transition-all pressable disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm indus-card rounded-lg hover:bg-white/10 transition-all pressable hover-glow disabled:opacity-50 group"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 group-hover:rotate-180 transition-transform ${isFetching ? 'animate-spin' : ''}`}>
                     <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                   </svg>
-                  Refresh
+                  <span className="group-hover:translate-x-0.5 transition-transform">Refresh</span>
                 </button>
               </div>
             </div>
             
-            {graphs.length === 0 ? (
-              <div className="indus-card p-12 text-center">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
+            {isFetching ? (
+              <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                {[...Array(6)].map((_, index) => (
+                  <div key={index} className="indus-card h-[600px] flex flex-col p-6 animate-pulse">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/10 rounded-lg"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-white/10 rounded w-24"></div>
+                          <div className="h-3 bg-white/5 rounded w-16"></div>
+                        </div>
+                      </div>
+                      <div className="w-8 h-8 bg-white/10 rounded-lg"></div>
+                    </div>
+                    <div className="min-h-[400px] bg-white/5 rounded-lg flex items-center justify-center">
+                      <div className="w-16 h-16 bg-white/10 rounded-full"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : graphs.length === 0 ? (
+              <div className="indus-card h-[600px] flex flex-col justify-center p-12 text-center hover-lift group">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-6 pulse-glow group-hover:scale-110 transition-transform">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-10 h-10 text-primary">
                     <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">No Visualizations Yet</h3>
-                <p className="text-neutral-400 mb-4">Start a conversation to generate charts and insights</p>
+                <h3 className="text-xl font-semibold text-white mb-3">No Visualizations Yet</h3>
+                <p className="text-neutral-400 mb-6 max-w-md mx-auto">Start a conversation to generate charts and insights that will appear here</p>
                 <button
                   onClick={() => {
                     const chatInput = document.querySelector('input[placeholder*="Ask a question"]') as HTMLInputElement;
@@ -490,72 +588,159 @@ export default function DashboardPage() {
                       chatInput.focus();
                     }
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 indus-button-primary rounded-lg pressable"
+                  className="inline-flex items-center gap-2 px-6 py-3 indus-button-primary rounded-lg pressable hover-scale group"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:translate-x-1 transition-transform">
                     <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
                   </svg>
                   Start Chatting
                 </button>
               </div>
             ) : (
-              <div className={`grid gap-6 ${gridCols === 1 ? 'grid-cols-1' : gridCols === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'}`}>
-                {graphs.map((graph, index) => (
-                  <div key={graph.graph_id || index} className="indus-card p-6 hover:bg-white/10 transition-all duration-300 group">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-primary">
-                            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-white group-hover:text-primary transition-colors">
-                            {graph.title || `Chart ${index + 1}`}
-                          </h3>
-                          <p className="text-sm text-neutral-400">
-                            {graph.graph_type || 'Visualization'}
-                          </p>
+              <div 
+                className="dashboard-grid"
+                style={{
+                  gridTemplateColumns: getGridColumns()
+                }}
+              >
+                {/* Debug: Show test cards when no graphs */}
+                {graphs.length === 0 && (
+                  <>
+                    <div className="indus-card h-[600px] flex flex-col bg-primary/10 border border-primary/20">
+                      <div className="flex-shrink-0 p-6 pb-4">
+                        <h3 className="text-white font-semibold mb-2">Test Card 1</h3>
+                        <p className="text-neutral-400 text-sm">This is a test card to verify grid layout</p>
+                      </div>
+                      <div className="flex-1 px-6 pb-4">
+                        <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                          <div className="text-center text-neutral-400">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-primary">
+                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                              </svg>
+                            </div>
+                            <p className="text-sm font-medium">Sample Chart</p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <UnpinButton
-                          graphId={graph.graph_id || ''}
-                          onUnpinned={() => {
-                            showSuccess("Graph removed from dashboard!");
-                            loadGraphs();
-                          }}
-                        />
+                      <div className="flex-shrink-0 px-6 pb-6">
+                        <p className="text-xs text-neutral-500">Test content for layout verification</p>
+                      </div>
+                    </div>
+                    <div className="indus-card h-[600px] flex flex-col bg-accent/10 border border-accent/20">
+                      <div className="flex-shrink-0 p-6 pb-4">
+                        <h3 className="text-white font-semibold mb-2">Test Card 2</h3>
+                        <p className="text-neutral-400 text-sm">Grid should change when you click buttons</p>
+                      </div>
+                      <div className="flex-1 px-6 pb-4">
+                        <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                          <div className="text-center text-neutral-400">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-accent/20 to-primary/20 flex items-center justify-center mx-auto mb-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-accent">
+                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                              </svg>
+                            </div>
+                            <p className="text-sm font-medium">Sample Chart</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 px-6 pb-6">
+                        <p className="text-xs text-neutral-500">Test content for layout verification</p>
+                      </div>
+                    </div>
+                    <div className="indus-card h-[600px] flex flex-col bg-success/10 border border-success/20">
+                      <div className="flex-shrink-0 p-6 pb-4">
+                        <h3 className="text-white font-semibold mb-2">Test Card 3</h3>
+                        <p className="text-neutral-400 text-sm">Current layout: {getGridColumns()}</p>
+                      </div>
+                      <div className="flex-1 px-6 pb-4">
+                        <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                          <div className="text-center text-neutral-400">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-success/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-success">
+                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                              </svg>
+                            </div>
+                            <p className="text-sm font-medium">Sample Chart</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 px-6 pb-6">
+                        <p className="text-xs text-neutral-500">Test content for layout verification</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {graphs.map((graph, index) => (
+                  <div key={graph.graph_id || index} className="indus-card hover:bg-white/10 transition-all duration-300 group hover-lift animated-bg h-[600px] flex flex-col" style={{ animationDelay: `${index * 0.1}s` }}>
+                    {/* Header - Fixed height */}
+                    <div className="flex-shrink-0 p-6 pb-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-primary group-hover:rotate-12 transition-transform">
+                              <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-white group-hover:text-primary transition-colors truncate">
+                              {graph.title || `Chart ${index + 1}`}
+                            </h3>
+                            <p className="text-sm text-neutral-400 group-hover:text-neutral-300 transition-colors truncate">
+                              {graph.graph_type || 'Visualization'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <UnpinButton
+                            graphId={graph.graph_id || ''}
+                            onUnpinned={() => {
+                              showSuccess("Graph removed from dashboard!");
+                              loadGraphs();
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="min-h-[400px] rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
-                      {graph.html_content ? (
-                        <div className="w-full h-full min-h-[400px]">
-                          <HTMLRender html={graph.html_content} />
-                        </div>
-                      ) : (graph as any).data ? (
-                        <ChartRenderer 
-                          data={(graph as any).data} 
-                          type={graph.graph_type || 'bar'} 
-                          title={graph.title || undefined}
-                          className="w-full h-full p-4"
-                        />
-                      ) : (
-                        <div className="text-center text-neutral-400">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-12 h-12 mx-auto mb-2 opacity-50">
-                            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                          </svg>
-                          <p className="text-sm">No preview available</p>
-                        </div>
+                    {/* Content Area - Flexible height */}
+                    <div className="flex-1 px-6 pb-4">
+                      <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                        {(graph as any).html_content || (graph as any).html ? (
+                          <div className="w-full h-full p-4">
+                            <HTMLRender html={(graph as any).html_content || (graph as any).html} />
+                          </div>
+                        ) : (graph as any).data ? (
+                          <div className="w-full h-full p-4">
+                            <ChartRenderer 
+                              data={(graph as any).data} 
+                              type={graph.graph_type || 'bar'} 
+                              title={graph.title || undefined}
+                              className="w-full h-full"
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-center text-neutral-400 p-8">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-primary">
+                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                              </svg>
+                            </div>
+                            <p className="text-sm font-medium">No preview available</p>
+                            <p className="text-xs text-neutral-500 mt-1">Graph content is being processed</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Footer - Fixed height */}
+                    <div className="flex-shrink-0 px-6 pb-6">
+                      {graph.description && (
+                        <p className="text-sm text-neutral-400 line-clamp-2 leading-relaxed">
+                          {graph.description}
+                        </p>
                       )}
                     </div>
-                    
-                    {graph.description && (
-                      <p className="mt-3 text-sm text-neutral-400 line-clamp-2">
-                        {graph.description}
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>
@@ -564,17 +749,20 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Fixed Right Chat Panel - Full Height */}
-      <div className="w-full lg:w-[600px] h-[50vh] lg:h-screen indus-card flex flex-col border-t lg:border-t-0 lg:border-l border-white/10 overflow-hidden">
+      {/* Enhanced Fixed Right Chat Panel - Full Height */}
+      <div className="dashboard-chat-panel w-full indus-card chat-panel border-t lg:border-t-0 lg:border-l border-white/10 slide-in-right">
         <div className="flex-shrink-0 p-6 border-b border-white/10 bg-white/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center indus-glow">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center indus-glow hover-scale group">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:rotate-12 transition-transform">
                   <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-bold text-white indus-text-gradient">AI Chat</h2>
+              <div>
+                <h2 className="text-xl font-bold text-white indus-text-gradient">AI Chat</h2>
+                <div className="w-6 h-0.5 bg-gradient-to-r from-primary to-accent rounded-full" />
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <ChatHistoryButton
@@ -687,7 +875,7 @@ export default function DashboardPage() {
         )}
         
         {/* Chat Messages */}
-        <div ref={messagesRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0" key={chatKey}>
+        <div ref={messagesRef} className="chat-messages p-4 space-y-4 compact-scrollbar" key={chatKey}>
           {chat.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-6 indus-glow">
@@ -718,12 +906,26 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     /* Assistant Message */
-                    <div>
-                      {/* Message Content - Only show if there's text content AND no graphs */}
-                      {item.text && item.text.trim() && (!item.graphs || item.graphs.length === 0) && (
+                    <div className="space-y-3">
+                      {/* Message Content - Show text content if available */}
+                      {item.text && item.text.trim() && (
                         <div className="bg-white/10 border border-white/20 text-white rounded-2xl px-4 py-3 backdrop-blur-sm shadow-sm">
-                          <div className="text-sm leading-relaxed text-white">
-                            <HTMLRender html={item.text} isTextContent={true} />
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="text-sm leading-relaxed text-white flex-1">
+                              <HTMLRender html={item.text} isTextContent={true} />
+                            </div>
+                            {isVoiceEnabled && (
+                              <button
+                                onClick={() => speakResponse(item.text || "")}
+                                className="p-1 text-neutral-400 hover:text-white transition-colors flex-shrink-0"
+                                title="Speak response"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                  <path d="M10 2a.75.75 0 01.75.75v14.5a.75.75 0 01-1.5 0V2.75A.75.75 0 0110 2z" />
+                                  <path d="M6.5 6.5a.75.75 0 00-1.5 0v7a.75.75 0 001.5 0v-7zM13.5 6.5a.75.75 0 00-1.5 0v7a.75.75 0 001.5 0v-7z" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -763,20 +965,33 @@ export default function DashboardPage() {
                               </div>
                               
                               {/* Graph Content */}
-                              <div className="p-4">
+                              <div className="p-4 min-h-[300px]">
                                 {graph.html && (
-                                  <div className="w-full flex items-center justify-center">
+                                  <div className="w-full h-full min-h-[300px] flex items-center justify-center">
                                     <HTMLRender html={graph.html} />
                                   </div>
                                 )}
                                 {!graph.html && (graph as any).data && (
-                                  <div className="w-full">
+                                  <div className="w-full h-full min-h-[300px]">
                                     <ChartRenderer 
                                       data={(graph as any).data} 
                                       type={graph.graph_type || 'bar'} 
                                       title={graph.title || undefined}
                                       className="w-full h-full"
                                     />
+                                  </div>
+                                )}
+                                {!graph.html && !(graph as any).data && (
+                                  <div className="w-full h-full min-h-[300px] flex items-center justify-center">
+                                    <div className="text-center text-neutral-400">
+                                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-primary">
+                                          <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                                        </svg>
+                                      </div>
+                                      <p className="text-sm font-medium">Graph Loading...</p>
+                                      <p className="text-xs text-neutral-500 mt-1">Rendering visualization</p>
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -804,6 +1019,18 @@ export default function DashboardPage() {
               </div>
             ))
           )}
+          {/* Interim Transcript Display */}
+          {interimTranscript && (
+            <div className="flex justify-start">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl px-4 py-3 backdrop-blur-sm mr-12 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                  <span className="text-sm text-blue-400 font-medium">Listening: {interimTranscript}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {isAwaitingAnswer && (
             <div className="flex justify-start">
               <div className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 backdrop-blur-sm mr-12 shadow-sm">
@@ -823,21 +1050,24 @@ export default function DashboardPage() {
         
         {/* Voice Chat Controls */}
         <div className="flex-shrink-0 p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
-          <div className="flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
             <VoiceChat
               onTranscript={handleVoiceTranscript}
               onError={handleVoiceError}
               isEnabled={isVoiceEnabled}
               onToggle={toggleVoiceChat}
+              onSpeakingChange={handleSpeakingChange}
+              onInterimTranscript={handleInterimTranscript}
             />
+            
           </div>
         </div>
 
-        {/* Chat Input */}
+        {/* Enhanced Chat Input */}
         <div className="flex-shrink-0 p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
-          <form onSubmit={onAsk} className="space-y-3">
+          <form onSubmit={onAsk} className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="flex-1 relative">
+              <div className="flex-1 relative group">
                 <textarea
                   value={question}
                   onChange={(e) => {
@@ -851,7 +1081,7 @@ export default function DashboardPage() {
                     }
                   }}
                   placeholder="Ask a question about your data..."
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all pr-12 hover:bg-white/15 text-sm resize-none min-h-[48px] max-h-32"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all pr-12 hover:bg-white/15 text-sm resize-none min-h-[48px] max-h-32 group-hover:border-primary/30 no-scrollbar"
                   rows={1}
                   style={{
                     height: 'auto',
@@ -864,8 +1094,8 @@ export default function DashboardPage() {
                     target.style.height = Math.min(target.scrollHeight, 128) + 'px';
                   }}
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-neutral-400">
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-neutral-400 group-hover:text-primary transition-colors">
                     <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                   </svg>
                 </div>
@@ -873,47 +1103,47 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={!question.trim() || isAwaitingAnswer}
-                className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-r from-primary to-accent disabled:opacity-50 disabled:cursor-not-allowed hover:from-primary-dark hover:to-accent-light transition-all shadow-lg"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-r from-primary to-accent disabled:opacity-50 disabled:cursor-not-allowed hover:from-primary-dark hover:to-accent-light transition-all shadow-lg pressable hover-scale group"
               >
                 {isAwaitingAnswer ? (
                   <div className="w-4 h-4 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                     <path d="M10.894 2.553a1 1 0 0 0-1.788 0l-7 14a1 1 0 0 0 1.169 1.409l5-1.429A1 1 0 0 0 9 15.571V11a1 1 0 1 1 2 0v4.571a1 1 0 0 0 .725.962l5 1.428a1 1 0 0 0 1.17-1.408l-7-14Z" />
                   </svg>
                 )}
               </button>
             </div>
             
-            {/* Quick Actions */}
-            <div className="flex flex-wrap gap-2">
+            {/* Enhanced Quick Actions */}
+            <div className="flex flex-wrap gap-2 no-scrollbar">
               <button
                 type="button"
                 onClick={() => setQuestion("Show me sales trends for the last quarter")}
-                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium"
+                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium pressable hover-scale group"
               >
-                 Sales Trends
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Sales Trends</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuestion("What are the top performing products?")}
-                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium"
+                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium pressable hover-scale group"
               >
-                 Top Products
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Top Products</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuestion("Create a pie chart of customer segments")}
-                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium"
+                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium pressable hover-scale group"
               >
-                Customer Segments
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Customer Segments</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuestion("Show revenue by month")}
-                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium"
+                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium pressable hover-scale group"
               >
-                Revenue Analysis
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Revenue Analysis</span>
               </button>
             </div>
           </form>
@@ -977,7 +1207,7 @@ function ChatHistoryPanel({
       {loading ? (
         <div className="h-8 skeleton rounded" />
       ) : (
-        <ul className="max-h-56 overflow-auto space-y-1">
+        <ul className="max-h-56 overflow-auto space-y-1 compact-scrollbar">
           {(items ?? [])?.map((t, i: number) => {
             const id = extractTranscriptId(t) ?? "";
             const title = (t as { title?: string | null })?.title ?? null;

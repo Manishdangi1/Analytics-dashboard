@@ -1,5 +1,25 @@
 import { api } from "@/lib/api";
 import type { components, operations } from "@/types/api";
+import axios from "axios";
+
+// Create a separate API client for LiveKit calls that uses LiveKit agent credentials
+const livekitApi = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+});
+
+// Add LiveKit agent authentication
+livekitApi.interceptors.request.use((config) => {
+  const livekitApiKey = process.env.NEXT_PUBLIC_LIVEKIT_AGENT_API_KEY;
+  console.log('🔑 LiveKit API Key present:', !!livekitApiKey);
+  console.log('🔑 LiveKit API Key length:', livekitApiKey?.length || 0);
+  if (livekitApiKey) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${livekitApiKey}`;
+  } else {
+    console.warn('⚠️ No LiveKit API Key found - LiveKit calls will fail');
+  }
+  return config;
+});
 
 type DashboardGraphListResponse = components["schemas"]["DashboardGraphListResponse"];
 type DashboardGraphRegistrationRequest = components["schemas"]["DashboardGraphRegistrationRequest"];
@@ -166,32 +186,32 @@ export async function health() {
 
 // LiveKit
 export async function livekitCreateSession(payload: components["schemas"]["LiveKitSessionCreateRequest"]) {
-  const { data } = await api.post<components["schemas"]["LiveKitSessionStartResponse"]>("/livekit/session", payload);
+  const { data } = await livekitApi.post<components["schemas"]["LiveKitSessionStartResponse"]>("/livekit/session", payload);
   return data;
 }
 
 export async function livekitEndSession(sessionId: string) {
-  const { data } = await api.delete<Record<string, unknown>>(`/livekit/session/${encodeURIComponent(sessionId)}`);
+  const { data } = await livekitApi.delete<Record<string, unknown>>(`/livekit/session/${encodeURIComponent(sessionId)}`);
   return data;
 }
 
 export async function livekitIssueToken(sessionId: string, payload?: components["schemas"]["LiveKitTokenRequest"]) {
-  const { data } = await api.post<components["schemas"]["LiveKitTokenResponse"]>(`/livekit/session/${encodeURIComponent(sessionId)}/token`, payload ?? null);
+  const { data } = await livekitApi.post<components["schemas"]["LiveKitTokenResponse"]>(`/livekit/session/${encodeURIComponent(sessionId)}/token`, payload ?? null);
   return data;
 }
 
 export async function livekitMetadata(sessionId: string) {
-  const { data } = await api.get<components["schemas"]["LiveKitSessionMetadataResponse"]>(`/livekit/session/${encodeURIComponent(sessionId)}/metadata`);
+  const { data } = await livekitApi.get<components["schemas"]["LiveKitSessionMetadataResponse"]>(`/livekit/session/${encodeURIComponent(sessionId)}/metadata`);
   return data;
 }
 
 export async function livekitIngestTranscript(sessionId: string, payload: components["schemas"]["LiveKitTranscriptIngest"]) {
-  const { data } = await api.post<Record<string, unknown>>(`/livekit/session/${encodeURIComponent(sessionId)}/transcripts`, payload);
+  const { data } = await livekitApi.post<Record<string, unknown>>(`/livekit/session/${encodeURIComponent(sessionId)}/transcripts`, payload);
   return data;
 }
 
 export async function livekitQuery(sessionId: string, payload: components["schemas"]["LiveKitQueryRequest"]) {
-  const { data } = await api.post<Record<string, unknown>>(`/livekit/session/${encodeURIComponent(sessionId)}/query`, payload);
+  const { data } = await livekitApi.post<Record<string, unknown>>(`/livekit/session/${encodeURIComponent(sessionId)}/query`, payload);
   return data;
 }
 

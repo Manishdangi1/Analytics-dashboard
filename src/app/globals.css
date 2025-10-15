@@ -19,6 +19,14 @@
   --error: #ff4444;
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
+  
+  /* Enhanced Animation Variables */
+  --animation-duration-fast: 0.15s;
+  --animation-duration-normal: 0.3s;
+  --animation-duration-slow: 0.5s;
+  --animation-easing-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --animation-easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --animation-easing-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @theme inline {
@@ -44,6 +52,394 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
+}
+
+/* Ensure no double scrollbars */
+.dashboard-container {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.dashboard-main {
+  height: 100%;
+  overflow: hidden;
+}
+
+.dashboard-content {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Chat panel specific styling */
+.chat-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+/* Remove scrollbars from specific areas where not needed */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Auto-hide scrollbars - only show on hover */
+.auto-hide-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+.auto-hide-scrollbar:hover {
+  scrollbar-color: var(--primary) rgba(255, 255, 255, 0.05);
+}
+
+.auto-hide-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.auto-hide-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.auto-hide-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 6px;
+  transition: background 0.3s ease;
+}
+
+.auto-hide-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+}
+
+/* Compact scrollbar for small areas */
+.compact-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
+
+.compact-scrollbar::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+.compact-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.compact-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+.compact-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Performance optimizations for animations */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hardware acceleration for smooth animations */
+.hardware-accelerated {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize animations for better performance */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Smooth scrolling for better UX */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Beautiful Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--primary-dark), var(--accent-light));
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, var(--accent), var(--primary));
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) rgba(255, 255, 255, 0.05);
+}
+
+/* Custom scrollbar classes for specific areas */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) rgba(255, 255, 255, 0.05);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--primary-dark), var(--accent-light));
+  background-clip: content-box;
+}
+
+/* Thin scrollbar for chat areas */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 6px;
+  border: none;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--primary-dark), var(--accent-light));
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth scrolling for all scrollable areas */
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+/* Enhanced scrollbar for main content */
+.main-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) rgba(255, 255, 255, 0.08);
+}
+
+.main-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.main-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  margin: 4px;
+}
+
+.main-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 12px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+}
+
+.main-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--primary-dark), var(--accent-light));
+  background-clip: content-box;
+  transform: scale(1.1);
+}
+
+.main-scrollbar::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, var(--accent), var(--primary));
+  background-clip: content-box;
+}
+
+/* Floating scrollbar effect */
+.floating-scrollbar::-webkit-scrollbar-thumb {
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.floating-scrollbar::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+}
+
+/* Enhanced scrollbar with glow for main content */
+.main-scrollbar::-webkit-scrollbar-thumb {
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
+}
+
+.main-scrollbar::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+}
+
+/* Subtle scrollbar for thin areas */
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  box-shadow: 0 0 4px rgba(0, 212, 255, 0.1);
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+/* Custom scrollbar for chat history */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.15);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+}
+
+/* Optimize dashboard layout to prevent unnecessary scrollbars */
+.dashboard-container {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-container {
+    flex-direction: row;
+  }
+}
+
+/* Ensure proper flex behavior */
+.dashboard-main-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-chat-panel {
+  flex-shrink: 0;
+  height: 50vh;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-chat-panel {
+    height: 100vh;
+    width: 600px;
+  }
+}
+
+/* Remove scrollbars from fixed elements */
+.fixed-element {
+  overflow: hidden;
+}
+
+/* Ensure proper textarea behavior without scrollbars */
+textarea {
+  resize: none;
+  overflow: hidden;
+}
+
+/* Optimize grid layouts */
+.dashboard-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+/* Force grid column overrides - these will override Tailwind */
+.grid-1-col {
+  grid-template-columns: 1fr !important;
+}
+
+.grid-2-col {
+  grid-template-columns: 1fr !important;
+}
+
+@media (min-width: 1024px) {
+  .grid-2-col {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+.grid-3-col {
+  grid-template-columns: 1fr !important;
+}
+
+@media (min-width: 1024px) {
+  .grid-3-col {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .grid-3-col {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
 }
 
 /* Glass morphism helpers */
@@ -72,11 +468,13 @@ html, body {
   to { opacity: 1; }
 }
 
-/* Indus Labs inspired page gradient */
+/* Enhanced Indus Labs inspired page gradient with animations */
 .page-gradient {
   position: relative;
   background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+  overflow: hidden;
 }
+
 .page-gradient:before {
   content: "";
   position: absolute;
@@ -87,6 +485,26 @@ html, body {
   pointer-events: none;
   filter: blur(15px);
   z-index: -1;
+  animation: gradientFloat 20s ease-in-out infinite;
+}
+
+.page-gradient:after {
+  content: "";
+  position: absolute;
+  inset: -30vh -20vw -20vh -20vw;
+  background: radial-gradient(80rem 60rem at 20% 80%, rgba(255, 0, 150, 0.05), transparent 50%),
+              radial-gradient(50rem 40rem at 90% 20%, rgba(0, 255, 255, 0.08), transparent 60%);
+  pointer-events: none;
+  filter: blur(20px);
+  z-index: -1;
+  animation: gradientFloat 25s ease-in-out infinite reverse;
+}
+
+@keyframes gradientFloat {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-2%, -1%) rotate(1deg); }
+  50% { transform: translate(1%, -2%) rotate(-1deg); }
+  75% { transform: translate(-1%, 1%) rotate(0.5deg); }
 }
 
 /* Fade-in-up animation utility */
@@ -120,30 +538,176 @@ html, body {
   100% { background-position: 0% 50%; }
 }
 
-/* Pressable micro-interaction */
-.pressable { transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease; }
-.pressable:hover { transform: translateY(-1px) scale(1.01); filter: saturate(1.05); }
-.pressable:active { transform: translateY(0px) scale(0.99); filter: saturate(0.98); }
+/* Enhanced Pressable micro-interactions */
+.pressable { 
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+  will-change: transform, box-shadow, filter;
+}
+.pressable:hover { 
+  transform: translateY(-2px) scale(1.02); 
+  filter: saturate(1.1) brightness(1.05);
+  box-shadow: 0 10px 25px rgba(0, 212, 255, 0.2);
+}
+.pressable:active { 
+  transform: translateY(0px) scale(0.98); 
+  filter: saturate(0.95);
+  transition-duration: var(--animation-duration-fast);
+}
 
-/* Indus Labs specific utilities */
+/* Advanced Hover Effects */
+.hover-lift {
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.hover-glow {
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+}
+.hover-glow:hover {
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.4);
+  border-color: rgba(0, 212, 255, 0.6);
+}
+
+.hover-scale {
+  transition: transform var(--animation-duration-normal) var(--animation-easing-bounce);
+}
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* Floating Animation */
+.floating {
+  animation: floating 3s ease-in-out infinite;
+}
+
+@keyframes floating {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Pulse Animation */
+.pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 40px rgba(0, 212, 255, 0.6);
+    transform: scale(1.02);
+  }
+}
+
+/* Slide In Animations */
+.slide-in-left {
+  animation: slideInLeft var(--animation-duration-slow) var(--animation-easing-elastic) both;
+}
+
+.slide-in-right {
+  animation: slideInRight var(--animation-duration-slow) var(--animation-easing-elastic) both;
+}
+
+.slide-in-up {
+  animation: slideInUp var(--animation-duration-slow) var(--animation-easing-elastic) both;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger Animation Delays */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+
+/* Enhanced Indus Labs specific utilities */
 .indus-card {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(10px);
   border-radius: 12px;
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+  will-change: transform, box-shadow, background;
+}
+
+.indus-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .indus-button-primary {
   background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   color: var(--background);
   border: none;
-  transition: all 200ms ease;
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+  position: relative;
+  overflow: hidden;
+  will-change: transform, box-shadow, background;
+}
+
+.indus-button-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left var(--animation-duration-slow) var(--animation-easing-smooth);
+}
+
+.indus-button-primary:hover::before {
+  left: 100%;
 }
 
 .indus-button-primary:hover {
   background: linear-gradient(135deg, var(--primary-dark) 0%, var(--accent-light) 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 35px rgba(0, 212, 255, 0.4);
+}
+
+.indus-button-primary:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: var(--animation-duration-fast);
 }
 
 .indus-text-gradient {
@@ -151,15 +715,67 @@ html, body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
 }
 
 .indus-glow {
   box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+  transition: box-shadow var(--animation-duration-normal) var(--animation-easing-smooth);
+}
+
+.indus-glow:hover {
+  box-shadow: 0 0 40px rgba(0, 212, 255, 0.5);
 }
 
 .indus-border-glow {
   border: 1px solid var(--primary);
   box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+}
+
+.indus-border-glow:hover {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+  border-color: var(--accent);
+}
+
+/* Enhanced Glass Morphism */
+.glass-enhanced {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+}
+
+.glass-enhanced:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Animated Background Pattern */
+.animated-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.animated-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(0, 212, 255, 0.05) 50%, transparent 70%);
+  background-size: 200% 200%;
+  animation: shimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% -200%; }
+  100% { background-position: 200% 200%; }
 }
 
 .chat-pop {
