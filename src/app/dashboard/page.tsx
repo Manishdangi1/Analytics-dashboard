@@ -428,15 +428,15 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight indus-text-gradient">Analytics Dashboard</h1>
-                <p className="text-neutral-400 text-sm hidden sm:block">Real-time insights and data visualizations</p>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent">Analytics Dashboard</h1>
+                <p className="text-slate-400 text-sm hidden sm:block">Real-time insights and data visualizations</p>
               </div>
             </div>
             
             <div className="flex items-center gap-4">
               {/* Enhanced Grid Controls */}
               <div className="hidden sm:flex items-center gap-1 text-xs">
-                <span className="text-neutral-400">Layout</span>
+                <span className="text-slate-400">Layout</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -445,7 +445,7 @@ export default function DashboardPage() {
                   }}
                   className={
                     "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
-                    (gridCols === 1 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
+                    (gridCols === 1 ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30" : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30")
                   }
                   title="1 column"
                 >
@@ -461,7 +461,7 @@ export default function DashboardPage() {
                   }}
                   className={
                     "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
-                    (gridCols === 2 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
+                    (gridCols === 2 ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30" : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30")
                   }
                   title="2 columns"
                 >
@@ -478,7 +478,7 @@ export default function DashboardPage() {
                   }}
                   className={
                     "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
-                    (gridCols === 3 ? "indus-button-primary" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30")
+                    (gridCols === 3 ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30" : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30")
                   }
                   title="3 columns"
                 >
@@ -493,7 +493,7 @@ export default function DashboardPage() {
               {/* Enhanced User Info and Actions */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 px-3 py-2 indus-card rounded-lg hover-lift group">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/30">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                     </svg>
@@ -531,11 +531,10 @@ export default function DashboardPage() {
           <div className="fade-in-up">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <h2 className="text-xl font-semibold text-white">Visualizations</h2>
-                <div className="w-8 h-1 bg-gradient-to-r from-primary to-accent rounded-full" />
-                <span className="text-xs text-neutral-400 bg-white/5 px-2 py-1 rounded-full">
-                  {gridCols === 1 ? '1 Column' : gridCols === 2 ? '2 Columns' : '3 Columns'} 
-                  <span className="ml-1 text-primary">({getGridColumns()})</span>
+                <h2 className="text-xl font-semibold text-gray-100">Visualizations</h2>
+                <div className="w-8 h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
+                <span className="text-xs text-slate-400 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50">
+                  <span className="text-blue-400 font-semibold">{gridCols}</span> {gridCols === 1 ? 'Column' : 'Columns'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -573,28 +572,94 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : graphs.length === 0 ? (
-              <div className="indus-card h-[600px] flex flex-col justify-center p-12 text-center hover-lift group">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-6 pulse-glow group-hover:scale-110 transition-transform">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-10 h-10 text-primary">
-                    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                  </svg>
+              <div className="min-h-[600px] flex flex-col items-center justify-center p-8 space-y-8">
+                {/* Hero Section */}
+                <div className="text-center space-y-6 max-w-2xl">
+                  <div className="relative">
+                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/50 animate-pulse">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-12 h-12 text-white">
+                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-4xl font-extrabold bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent mb-4">
+                      Your Dashboard Awaits
+                    </h3>
+                    <p className="text-lg text-slate-300 leading-relaxed max-w-xl mx-auto">
+                      Start a conversation with AI to generate beautiful visualizations and pin your favorite insights here
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-3">No Visualizations Yet</h3>
-                <p className="text-neutral-400 mb-6 max-w-md mx-auto">Start a conversation to generate charts and insights that will appear here</p>
+
+                {/* Feature Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
+                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-6 rounded-2xl backdrop-blur-xl text-center hover:border-blue-500/40 transition-all duration-300 hover:scale-105">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-blue-400">
+                        <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
+                      </svg>
+                    </div>
+                    <h4 className="text-sm font-semibold text-gray-100 mb-2">Ask Questions</h4>
+                    <p className="text-xs text-slate-400">Chat with AI to analyze your data</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-6 rounded-2xl backdrop-blur-xl text-center hover:border-purple-500/40 transition-all duration-300 hover:scale-105">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 flex items-center justify-center mx-auto mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-purple-400">
+                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                      </svg>
+                    </div>
+                    <h4 className="text-sm font-semibold text-gray-100 mb-2">Generate Graphs</h4>
+                    <p className="text-xs text-slate-400">Get instant visualizations from your queries</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-6 rounded-2xl backdrop-blur-xl text-center hover:border-emerald-500/40 transition-all duration-300 hover:scale-105">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-emerald-400">
+                        <path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z" />
+                      </svg>
+                    </div>
+                    <h4 className="text-sm font-semibold text-gray-100 mb-2">Pin Insights</h4>
+                    <p className="text-xs text-slate-400">Save your best visualizations here</p>
+                  </div>
+                </div>
+
+                {/* CTA Button */}
                 <button
                   onClick={() => {
-                    const chatInput = document.querySelector('input[placeholder*="Ask a question"]') as HTMLInputElement;
+                    const chatInput = document.querySelector('textarea[placeholder*="Ask a question"]') as HTMLTextAreaElement;
                     if (chatInput) {
                       chatInput.focus();
                     }
                   }}
-                  className="inline-flex items-center gap-2 px-6 py-3 indus-button-primary rounded-lg pressable hover-scale group"
+                  className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all duration-200 pressable shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 hover:scale-105 group"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:translate-x-1 transition-transform">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:rotate-12 transition-transform duration-300">
                     <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
                   </svg>
-                  Start Chatting
+                  <span className="text-white font-semibold text-lg">Start Your First Query</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform duration-300">
+                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
                 </button>
+
+                {/* Quick Examples */}
+                <div className="text-center space-y-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Try asking</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
+                      "Show me sales trends"
+                    </span>
+                    <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
+                      "Top performing products"
+                    </span>
+                    <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
+                      "Revenue by month"
+                    </span>
+                  </div>
+                </div>
               </div>
             ) : (
               <div 
@@ -677,16 +742,16 @@ export default function DashboardPage() {
                     <div className="flex-shrink-0 p-6 pb-4">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-primary group-hover:rotate-12 transition-transform">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-400 group-hover:rotate-12 transition-transform">
                               <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                             </svg>
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-white group-hover:text-primary transition-colors truncate">
+                            <h3 className="font-semibold text-gray-100 group-hover:text-blue-400 transition-colors truncate">
                               {graph.title || `Chart ${index + 1}`}
                             </h3>
-                            <p className="text-sm text-neutral-400 group-hover:text-neutral-300 transition-colors truncate">
+                            <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors truncate">
                               {graph.graph_type || 'Visualization'}
                             </p>
                           </div>
@@ -720,14 +785,14 @@ export default function DashboardPage() {
                             />
                           </div>
                         ) : (
-                          <div className="text-center text-neutral-400 p-8">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-primary">
+                          <div className="text-center text-slate-400 p-8">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-blue-400">
                                 <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                               </svg>
                             </div>
-                            <p className="text-sm font-medium">No preview available</p>
-                            <p className="text-xs text-neutral-500 mt-1">Graph content is being processed</p>
+                            <p className="text-sm font-medium text-gray-100">No preview available</p>
+                            <p className="text-xs text-slate-500 mt-1">Graph content is being processed</p>
                           </div>
                         )}
                       </div>
@@ -754,14 +819,14 @@ export default function DashboardPage() {
         <div className="flex-shrink-0 p-6 border-b border-white/10 bg-white/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center indus-glow hover-scale group">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 hover-scale group">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:rotate-12 transition-transform">
                   <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
                 </svg>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white indus-text-gradient">AI Chat</h2>
-                <div className="w-6 h-0.5 bg-gradient-to-r from-primary to-accent rounded-full" />
+                <h2 className="text-xl font-bold bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent">AI Chat</h2>
+                <div className="w-6 h-0.5 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -899,25 +964,25 @@ export default function DashboardPage() {
                 <div className={`max-w-[80%] ${item.role === "user" ? "ml-12" : "mr-12"}`}>
                   {/* User Message */}
                   {item.role === "user" ? (
-                    <div className="bg-gradient-to-r from-primary to-accent text-white rounded-2xl px-4 py-3 shadow-lg">
-                      <div className="text-sm leading-relaxed">
+                    <div className="bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-2xl px-5 py-3.5 shadow-xl max-w-[85%]">
+                      <div className="text-[15px] leading-relaxed font-medium">
                         <HTMLRender html={item.text || ""} isTextContent={true} />
                       </div>
                     </div>
                   ) : (
                     /* Assistant Message */
-                    <div className="space-y-3">
-                      {/* Message Content - Show text content if available */}
-                      {item.text && item.text.trim() && (
-                        <div className="bg-white/10 border border-white/20 text-white rounded-2xl px-4 py-3 backdrop-blur-sm shadow-sm">
+                    <div className="space-y-3 max-w-[95%]">
+                      {/* Message Content - Show text only if there are no graphs */}
+                      {item.text && item.text.trim() && (!item.graphs || item.graphs.length === 0) && (
+                        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/50 text-white rounded-2xl px-5 py-3.5 backdrop-blur-md shadow-xl">
                           <div className="flex items-start justify-between gap-3">
-                            <div className="text-sm leading-relaxed text-white flex-1">
+                            <div className="text-[15px] leading-relaxed text-gray-100 flex-1 font-normal">
                               <HTMLRender html={item.text} isTextContent={true} />
                             </div>
                             {isVoiceEnabled && (
                               <button
                                 onClick={() => speakResponse(item.text || "")}
-                                className="p-1 text-neutral-400 hover:text-white transition-colors flex-shrink-0"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all duration-200 flex-shrink-0"
                                 title="Speak response"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -934,20 +999,20 @@ export default function DashboardPage() {
                       {item.graphs && item.graphs.length > 0 && (
                         <div className="space-y-3">
                           {item.graphs.map((graph, j) => (
-                            <div key={j} className="bg-white/10 border border-white/20 rounded-2xl overflow-hidden backdrop-blur-sm shadow-sm">
+                            <div key={j} className="bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-slate-700/60 rounded-2xl overflow-hidden backdrop-blur-md shadow-2xl">
                               {/* Graph Header */}
-                              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                              <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-transparent">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-primary">
+                                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-blue-500/30">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-400">
                                       <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                                     </svg>
                                   </div>
                                   <div>
-                                    <span className="text-sm font-semibold text-white">
+                                    <span className="text-[15px] font-semibold text-gray-100">
                                       {item.userQuestion || graph.title || `Chart ${j + 1}`}
                                     </span>
-                                    <p className="text-xs text-neutral-300 font-medium">
+                                    <p className="text-xs text-slate-400 font-medium mt-0.5">
                                       {graph.graph_type || 'Data visualization'}
                                     </p>
                                   </div>
@@ -999,12 +1064,14 @@ export default function DashboardPage() {
                               {/* Graph Insight */}
                               {graph.insight && (
                                 <div className="px-4 pb-4">
-                                  <div className="p-3 bg-primary/20 rounded-lg border border-primary/30 shadow-sm">
-                                    <div className="flex items-start gap-2">
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-primary mt-0.5 flex-shrink-0">
-                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                      </svg>
-                                      <p className="text-sm text-white leading-relaxed font-medium">{graph.insight}</p>
+                                  <div className="p-4 bg-gradient-to-r from-blue-500/15 to-purple-500/15 rounded-xl border border-blue-500/30 shadow-lg backdrop-blur-sm">
+                                    <div className="flex items-start gap-3">
+                                      <div className="flex-shrink-0 mt-0.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-400">
+                                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                        </svg>
+                                      </div>
+                                      <p className="text-[14px] text-gray-100 leading-relaxed font-medium">{graph.insight}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -1022,10 +1089,13 @@ export default function DashboardPage() {
           {/* Interim Transcript Display */}
           {interimTranscript && (
             <div className="flex justify-start">
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl px-4 py-3 backdrop-blur-sm mr-12 shadow-sm">
+              <div className="bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 rounded-2xl px-5 py-3 backdrop-blur-md mr-12 shadow-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-                  <span className="text-sm text-blue-400 font-medium">Listening: {interimTranscript}</span>
+                  <div className="relative">
+                    <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse" />
+                    <div className="absolute inset-0 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
+                  </div>
+                  <span className="text-[14px] text-emerald-300 font-medium">Listening: <span className="text-gray-200">{interimTranscript}</span></span>
                 </div>
               </div>
             </div>
@@ -1033,14 +1103,14 @@ export default function DashboardPage() {
 
           {isAwaitingAnswer && (
             <div className="flex justify-start">
-              <div className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 backdrop-blur-sm mr-12 shadow-sm">
+              <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/60 rounded-2xl px-5 py-3.5 backdrop-blur-md mr-12 shadow-xl">
                 <div className="flex items-center gap-3">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="flex space-x-1.5">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
-                  <span className="text-sm text-white font-medium">Analyzing your data...</span>
+                  <span className="text-[15px] text-gray-100 font-medium">Analyzing your data...</span>
                 </div>
               </div>
             </div>
@@ -1049,7 +1119,7 @@ export default function DashboardPage() {
         </div>
         
         {/* Voice Chat Controls */}
-        <div className="flex-shrink-0 p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
+        <div className="flex-shrink-0 p-4 border-t border-slate-700/50 bg-gradient-to-b from-slate-900/70 to-slate-950/80 backdrop-blur-md">
           <div className="flex flex-col items-center gap-3">
             <VoiceChat
               onTranscript={handleVoiceTranscript}
@@ -1059,14 +1129,13 @@ export default function DashboardPage() {
               onSpeakingChange={handleSpeakingChange}
               onInterimTranscript={handleInterimTranscript}
             />
-            
           </div>
         </div>
 
         {/* Enhanced Chat Input */}
-        <div className="flex-shrink-0 p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
-          <form onSubmit={onAsk} className="space-y-4">
-            <div className="flex items-center gap-3">
+        <div className="flex-shrink-0 p-4 border-t border-slate-700/50 bg-gradient-to-b from-slate-900/80 to-slate-950/90 backdrop-blur-md">
+          <form onSubmit={onAsk} className="space-y-3">
+            <div className="flex items-end gap-3">
               <div className="flex-1 relative group">
                 <textarea
                   value={question}
@@ -1081,11 +1150,11 @@ export default function DashboardPage() {
                     }
                   }}
                   placeholder="Ask a question about your data..."
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all pr-12 hover:bg-white/15 text-sm resize-none min-h-[48px] max-h-32 group-hover:border-primary/30 no-scrollbar"
+                  className="w-full px-5 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl text-gray-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 pr-12 hover:bg-slate-800/80 text-[15px] resize-none min-h-[52px] max-h-32 group-hover:border-blue-500/30 no-scrollbar font-normal"
                   rows={1}
                   style={{
                     height: 'auto',
-                    minHeight: '48px',
+                    minHeight: '52px',
                     maxHeight: '128px'
                   }}
                   onInput={(e) => {
@@ -1094,8 +1163,8 @@ export default function DashboardPage() {
                     target.style.height = Math.min(target.scrollHeight, 128) + 'px';
                   }}
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-neutral-400 group-hover:text-primary transition-colors">
+                <div className="absolute right-4 bottom-4 group-hover:scale-110 transition-transform">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors">
                     <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                   </svg>
                 </div>
@@ -1103,12 +1172,12 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={!question.trim() || isAwaitingAnswer}
-                className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-r from-primary to-accent disabled:opacity-50 disabled:cursor-not-allowed hover:from-primary-dark hover:to-accent-light transition-all shadow-lg pressable hover-scale group"
+                className="inline-flex items-center justify-center w-[52px] h-[52px] rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 disabled:opacity-40 disabled:cursor-not-allowed hover:from-blue-500 hover:to-purple-500 transition-all duration-200 shadow-lg shadow-blue-500/20 pressable hover-scale group"
               >
                 {isAwaitingAnswer ? (
-                  <div className="w-4 h-4 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                     <path d="M10.894 2.553a1 1 0 0 0-1.788 0l-7 14a1 1 0 0 0 1.169 1.409l5-1.429A1 1 0 0 0 9 15.571V11a1 1 0 1 1 2 0v4.571a1 1 0 0 0 .725.962l5 1.428a1 1 0 0 0 1.17-1.408l-7-14Z" />
                   </svg>
                 )}
@@ -1120,41 +1189,43 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setQuestion("Show me sales trends for the last quarter")}
-                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium pressable hover-scale group"
+                className="px-3.5 py-2 text-[13px] bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 hover:border-blue-500/30 rounded-xl text-slate-300 hover:text-gray-100 transition-all duration-200 font-medium pressable hover-scale group"
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Sales Trends</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block"> Sales Trends</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuestion("What are the top performing products?")}
-                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium pressable hover-scale group"
+                className="px-3.5 py-2 text-[13px] bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 hover:border-purple-500/30 rounded-xl text-slate-300 hover:text-gray-100 transition-all duration-200 font-medium pressable hover-scale group"
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Top Products</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block"> Top Products</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuestion("Create a pie chart of customer segments")}
-                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium pressable hover-scale group"
+                className="px-3.5 py-2 text-[13px] bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 hover:border-teal-500/30 rounded-xl text-slate-300 hover:text-gray-100 transition-all duration-200 font-medium pressable hover-scale group"
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Customer Segments</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block"> Customer Segments</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuestion("Show revenue by month")}
-                className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 hover:text-white transition-all font-medium pressable hover-scale group"
+                className="px-3.5 py-2 text-[13px] bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 hover:border-emerald-500/30 rounded-xl text-slate-300 hover:text-gray-100 transition-all duration-200 font-medium pressable hover-scale group"
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Revenue Analysis</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block"> Revenue Analysis</span>
               </button>
             </div>
           </form>
           
           {error && (
-            <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-red-400">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <p className="text-sm text-red-400 font-medium">{error}</p>
+            <div className="mt-3 p-4 bg-gradient-to-r from-red-500/15 to-red-600/15 border border-red-500/30 rounded-xl backdrop-blur-sm shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-red-400">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <p className="text-[14px] text-red-300 font-medium flex-1">{error}</p>
               </div>
             </div>
           )}
@@ -1332,7 +1403,7 @@ function NewChatButton({ onNew }: { onNew: () => void }) {
     <button
       type="button"
       onClick={onNew}
-      className="inline-flex items-center gap-2 rounded-full indus-button-primary px-3 py-1.5 text-xs font-medium pressable"
+      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-4 py-2 text-xs font-semibold pressable shadow-lg shadow-blue-500/30 transition-all duration-200 hover:scale-105"
       title="Start a new chat"
     >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">

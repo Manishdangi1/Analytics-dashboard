@@ -831,17 +831,17 @@ export default function VoiceChat({
 
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex items-center justify-center gap-3">
       {/* Main Voice Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Voice Chat Toggle */}
         <button
           onClick={onToggle}
           disabled={isConnecting}
-          className={`relative inline-flex items-center justify-center w-12 h-12 rounded-xl transition-all pressable ${
+          className={`relative inline-flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-300 pressable ${
             isEnabled
-              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white indus-glow"
-              : "bg-white/10 border border-white/20 text-neutral-400 hover:bg-white/20"
+              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
+              : "bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:border-white/20"
           } ${isConnecting ? "opacity-50 cursor-not-allowed" : ""}`}
           title={isEnabled ? "Disable voice chat" : "Enable voice chat"}
         >
@@ -859,119 +859,39 @@ export default function VoiceChat({
             </svg>
           )}
           
-          {/* Speaking indicator */}
-          {(isSpeaking || isListening) && (
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+          {/* Active indicator */}
+          {isEnabled && (
+            <div className="absolute -top-0.5 -right-0.5">
+              <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse" />
+              <div className="absolute inset-0 w-3 h-3 bg-emerald-400 rounded-full animate-ping" />
+            </div>
           )}
         </button>
 
-        {/* Mute Toggle */}
-        {isConnected && (
-          <button
-            onClick={toggleMute}
-            className={`inline-flex items-center justify-center w-10 h-10 rounded-lg transition-all pressable ${
-              isMuted
-                ? "bg-red-500/20 border border-red-500/30 text-red-400"
-                : "bg-white/10 border border-white/20 text-white hover:bg-white/20"
-            }`}
-            title={isMuted ? "Unmute microphone" : "Mute microphone"}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-              {isMuted ? (
-                <path d="M13.92 10.38a.75.75 0 00-1.34-.67L12 10.5V6a3 3 0 00-5.25-2.13.75.75 0 00-1.5 0A4.5 4.5 0 0112 6v4.5l-.58-.79a.75.75 0 00-1.34.67l.58.79-.58.79a.75.75 0 001.34.67L12 12.5V17a.75.75 0 001.5 0v-4.5l.58.79a.75.75 0 001.34-.67l-.58-.79.58-.79z" />
-              ) : (
-                <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-              )}
-            </svg>
-          </button>
-        )}
-
-        {/* Stop Speaking Button */}
-        {isSpeaking && (
-          <button
-            onClick={() => {
-              if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                speechSynthesis.cancel();
-              }
-            }}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-all"
-            title="Stop speaking"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-            </svg>
-          </button>
-        )}
-      </div>
-
-      {/* Voice System Status */}
-      <div className="flex items-center gap-2">
-        <div className="px-3 py-1 rounded-lg text-xs font-medium bg-blue-500/20 border border-blue-500/30 text-blue-400">
-          🎙️ LiveKit Only
-        </div>
-        {isConnected && (
-          <div className="px-3 py-1 rounded-lg text-xs font-medium bg-green-500/20 border border-green-500/30 text-green-400">
-            ✅ LiveKit Connected
-          </div>
-        )}
-        {!isConnected && (
-          <div className="px-3 py-1 rounded-lg text-xs font-medium bg-red-500/20 border border-red-500/30 text-red-400">
-            ⚠️ Not Connected
+        {/* Simplified Status Indicator */}
+        {isEnabled && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
+            {isListening && (
+              <>
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-xs text-emerald-400 font-medium">Listening</span>
+              </>
+            )}
+            {isSpeaking && !isListening && (
+              <>
+                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
+                <span className="text-xs text-purple-400 font-medium">Speaking</span>
+              </>
+            )}
+            {!isListening && !isSpeaking && (
+              <>
+                <div className="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse" />
+                <span className="text-xs text-teal-400 font-medium">Active</span>
+              </>
+            )}
           </div>
         )}
       </div>
-
-      {/* Status Indicators */}
-      <div className="flex items-center gap-2">
-        {/* Connection Status */}
-        {isConnected && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-xs text-green-400 font-medium">Voice Active</span>
-          </div>
-        )}
-
-        {/* Listening Status */}
-        {isListening && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-            <span className="text-xs text-blue-400 font-medium">Listening...</span>
-          </div>
-        )}
-
-        {/* Speaking Status */}
-        {isSpeaking && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-            <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-            <span className="text-xs text-purple-400 font-medium">Speaking...</span>
-          </div>
-        )}
-
-        {/* Processing Status */}
-        {isProcessing && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/10 border border-orange-500/20 rounded-lg">
-            <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
-            <span className="text-xs text-orange-400 font-medium">Processing with LiveKit...</span>
-          </div>
-        )}
-
-        {/* Voice Active Status */}
-        {isVoiceActive && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-            <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-            <span className="text-xs text-purple-400 font-medium">Voice Processing Active</span>
-          </div>
-        )}
-      </div>
-
-
-      {/* Interim Transcript Display */}
-      {interimTranscript && (
-        <div className="w-full max-w-md px-4 py-2 bg-white/5 border border-white/10 rounded-lg">
-          <div className="text-xs text-neutral-400 mb-1">Listening:</div>
-          <div className="text-sm text-white italic">{interimTranscript}</div>
-        </div>
-      )}
 
       {/* Hidden audio element for playback */}
       <audio 
@@ -980,19 +900,19 @@ export default function VoiceChat({
         controls={false}
         style={{ display: 'none' }}
         onEnded={() => {
-          console.log('🔇 Audio playback ended');
+          console.log(' Audio playback ended');
           setIsSpeaking(false);
         }}
         onError={(e) => {
-          console.error('❌ Audio element error:', e);
+          console.error(' Audio element error:', e);
           setIsSpeaking(false);
         }}
         onPlay={() => {
-          console.log('▶️ Audio playback started');
+          console.log('▶ Audio playback started');
           setIsSpeaking(true);
         }}
         onPause={() => {
-          console.log('⏸️ Audio playback paused');
+          console.log('Audio playback paused');
           setIsSpeaking(false);
         }}
       />
