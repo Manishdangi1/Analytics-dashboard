@@ -37,6 +37,14 @@ export async function listDashboardGraphs(params?: operations["list_dashboard_gr
 
 export async function registerDashboardGraph(payload: DashboardGraphRegistrationRequest) {
   const { data } = await api.post<DashboardGraphRegistrationResponse>("/dashboard/graphs", payload);
+  
+  // Trigger dashboard refresh after successful registration
+  if (typeof window !== "undefined" && (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs) {
+    setTimeout(() => {
+      (window as unknown as { refreshDashboardGraphs: () => void }).refreshDashboardGraphs();
+    }, 100);
+  }
+  
   return data;
 }
 
@@ -149,6 +157,14 @@ export async function getChat(transcriptId: string, chatId: string) {
 // Dashboard admin
 export async function unregisterDashboardGraph(graphIdentifier: string) {
   const { data } = await api.delete<Record<string, unknown>>(`/dashboard/graphs/${encodeURIComponent(graphIdentifier)}`);
+  
+  // Trigger dashboard refresh after successful delete
+  if (typeof window !== "undefined" && (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs) {
+    setTimeout(() => {
+      (window as unknown as { refreshDashboardGraphs: () => void }).refreshDashboardGraphs();
+    }, 100);
+  }
+  
   return data;
 }
 

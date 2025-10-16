@@ -34,14 +34,14 @@ export default function ChartRenderer({ data, type, title, className = "" }: Cha
       }
     } catch (error) {
       console.error("Error rendering chart:", error);
-      chartRef.current.innerHTML = `<div class="text-center text-neutral-400 p-4">Error rendering chart</div>`;
+      chartRef.current.innerHTML = `<div class="text-center text-neutral-400 p-4 dark:text-neutral-400 light:text-gray-600">Error rendering chart</div>`;
     }
   }, [data, type]);
 
   return (
     <div className={`w-full h-full ${className}`}>
       {title && (
-        <h3 className="text-lg font-semibold text-white mb-4 text-center">{title}</h3>
+        <h3 className="text-lg font-semibold text-white mb-4 text-center dark:text-white light:text-gray-800">{title}</h3>
       )}
       <div ref={chartRef} className="w-full h-full min-h-[200px]" />
     </div>
@@ -50,7 +50,7 @@ export default function ChartRenderer({ data, type, title, className = "" }: Cha
 
 function createBarChart(data: any, container: HTMLElement) {
   if (!Array.isArray(data) || data.length === 0) {
-    container.innerHTML = '<div class="text-center text-neutral-400 p-4">No data available</div>';
+    container.innerHTML = '<div class="text-center text-neutral-400 p-4 dark:text-neutral-400 light:text-gray-600">No data available</div>';
     return;
   }
 
@@ -72,7 +72,7 @@ function createBarChart(data: any, container: HTMLElement) {
           style="width: ${barWidth}px; height: ${height}px; min-height: 4px;"
           title="${label}: ${value}"
         ></div>
-        <div class="text-xs text-neutral-400 mt-2 text-center max-w-16 truncate" title="${label}">
+        <div class="text-xs text-neutral-400 mt-2 text-center max-w-16 truncate dark:text-neutral-400 light:text-gray-600" title="${label}">
           ${label}
         </div>
       </div>
@@ -85,7 +85,7 @@ function createBarChart(data: any, container: HTMLElement) {
 
 function createLineChart(data: any, container: HTMLElement) {
   if (!Array.isArray(data) || data.length === 0) {
-    container.innerHTML = '<div class="text-center text-neutral-400 p-4">No data available</div>';
+    container.innerHTML = '<div class="text-center text-neutral-400 p-4 dark:text-neutral-400 light:text-gray-600">No data available</div>';
     return;
   }
 
@@ -115,7 +115,7 @@ function createLineChart(data: any, container: HTMLElement) {
         <path d="${pathData}" stroke="url(#lineGradient)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
         <path d="${pathData} L ${(data.length - 1) * stepX} ${chartHeight} L 0 ${chartHeight} Z" fill="url(#lineGradient)" opacity="0.1" />
       </svg>
-      <div class="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-neutral-400">
+      <div class="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-neutral-400 dark:text-neutral-400 light:text-gray-600">
         ${data.map((item: any, index: number) => 
           `<span class="text-center" style="width: ${stepX}px;">${item.label || item.name || index + 1}</span>`
         ).join('')}
@@ -128,7 +128,7 @@ function createLineChart(data: any, container: HTMLElement) {
 
 function createPieChart(data: any, container: HTMLElement) {
   if (!Array.isArray(data) || data.length === 0) {
-    container.innerHTML = '<div class="text-center text-neutral-400 p-4">No data available</div>';
+    container.innerHTML = '<div class="text-center text-neutral-400 p-4 dark:text-neutral-400 light:text-gray-600">No data available</div>';
     return;
   }
 
@@ -173,8 +173,8 @@ function createPieChart(data: any, container: HTMLElement) {
           return `
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full" style="background-color: ${color}"></div>
-              <span class="text-sm text-neutral-300">${label}</span>
-              <span class="text-sm text-neutral-400">${percentage}%</span>
+              <span class="text-sm text-neutral-300 dark:text-neutral-300 light:text-gray-700">${label}</span>
+              <span class="text-sm text-neutral-400 dark:text-neutral-400 light:text-gray-600">${percentage}%</span>
             </div>
           `;
         }).join('')}
@@ -187,7 +187,7 @@ function createPieChart(data: any, container: HTMLElement) {
 
 function createAreaChart(data: any, container: HTMLElement) {
   if (!Array.isArray(data) || data.length === 0) {
-    container.innerHTML = '<div class="text-center text-neutral-400 p-4">No data available</div>';
+    container.innerHTML = '<div class="text-center text-neutral-400 p-4 dark:text-neutral-400 light:text-gray-600">No data available</div>';
     return;
   }
 
@@ -217,7 +217,7 @@ function createAreaChart(data: any, container: HTMLElement) {
         <path d="${pathData} L ${(data.length - 1) * stepX} ${chartHeight} L 0 ${chartHeight} Z" fill="url(#areaGradient)" />
         <path d="${pathData}" stroke="#00d4ff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-      <div class="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-neutral-400">
+      <div class="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-neutral-400 dark:text-neutral-400 light:text-gray-600">
         ${data.map((item: any, index: number) => 
           `<span class="text-center" style="width: ${stepX}px;">${item.label || item.name || index + 1}</span>`
         ).join('')}
@@ -230,7 +230,7 @@ function createAreaChart(data: any, container: HTMLElement) {
 
 function createTable(data: any, container: HTMLElement) {
   if (!Array.isArray(data) || data.length === 0) {
-    container.innerHTML = '<div class="text-center text-neutral-400 p-4">No data available</div>';
+    container.innerHTML = '<div class="text-center text-neutral-400 p-4 dark:text-neutral-400 light:text-gray-600">No data available</div>';
     return;
   }
 
@@ -240,19 +240,19 @@ function createTable(data: any, container: HTMLElement) {
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b border-white/10">
-            ${headers.map(header => `<th class="text-left py-2 px-3 text-neutral-300 font-medium">${header}</th>`).join('')}
+          <tr class="border-b border-white/10 dark:border-white/10 light:border-gray-200/60">
+            ${headers.map(header => `<th class="text-left py-2 px-3 text-neutral-300 font-medium dark:text-neutral-300 light:text-gray-700">${header}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
           ${data.slice(0, 10).map((row: any, index: number) => 
-            `<tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
-              ${headers.map(header => `<td class="py-2 px-3 text-neutral-400">${row[header] || '-'}</td>`).join('')}
+            `<tr class="border-b border-white/5 hover:bg-white/5 transition-colors dark:border-white/5 dark:hover:bg-white/5 light:border-gray-200/40 light:hover:bg-gray-50/80">
+              ${headers.map(header => `<td class="py-2 px-3 text-neutral-400 dark:text-neutral-400 light:text-gray-600">${row[header] || '-'}</td>`).join('')}
             </tr>`
           ).join('')}
         </tbody>
       </table>
-      ${data.length > 10 ? `<div class="text-center text-xs text-neutral-500 mt-2">Showing 10 of ${data.length} rows</div>` : ''}
+      ${data.length > 10 ? `<div class="text-center text-xs text-neutral-500 mt-2 dark:text-neutral-500 light:text-gray-500">Showing 10 of ${data.length} rows</div>` : ''}
     </div>
   `;
   

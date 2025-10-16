@@ -43,17 +43,17 @@ export default function TopNav() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/5 border-b border-white/10">
+    <div className="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/5 border-b border-white/10 dark:bg-white/5 dark:border-white/10 light:bg-white/80 light:border-gray-200/60">
       <div className="w-full px-4 h-14 flex items-center justify-between">
-        <Link href="/dashboard" className="font-semibold">Indus</Link>
+        <Link href="/dashboard" className="font-semibold dark:text-white light:text-gray-800">Indus</Link>
         <nav className="flex items-center gap-4 text-sm">
           {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
               className={
-                "px-2 py-1 rounded hover:bg-white/10 transition " +
-                (pathname === l.href ? "bg-white/10" : "")
+                "px-2 py-1 rounded hover:bg-white/10 transition dark:hover:bg-white/10 light:hover:bg-gray-100/80 " +
+                (pathname === l.href ? "bg-white/10 dark:bg-white/10 light:bg-gray-100/80" : "dark:text-gray-300 light:text-gray-600")
               }
             >
               {l.label}
@@ -64,7 +64,7 @@ export default function TopNav() {
               clearAccessToken();
               if (typeof window !== "undefined") window.location.href = "/login";
             }}
-            className="px-2 py-1 rounded hover:bg-white/10 transition"
+            className="px-2 py-1 rounded hover:bg-white/10 transition dark:hover:bg-white/10 dark:text-gray-300 light:hover:bg-gray-100/80 light:text-gray-600"
           >
             Logout
           </button>

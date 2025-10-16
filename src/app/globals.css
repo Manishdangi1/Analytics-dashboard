@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Indus Labs Theme Colors */
+  /* Dark Theme Colors (Default) */
   --background: #0a0a0a;
   --foreground: #ffffff;
   --primary: #00d4ff;
@@ -29,6 +29,27 @@
   --animation-easing-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Light Theme Variables */
+.light-theme {
+  --background: #ffffff;
+  --foreground: #111827;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --secondary: #f8fafc;
+  --accent: #7c3aed;
+  --accent-light: #8b5cf6;
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --border: #d1d5db;
+  --border-light: #e5e7eb;
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(0, 0, 0, 0.1);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -43,6 +64,312 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  transition: background-color var(--animation-duration-normal) var(--animation-easing-smooth), color var(--animation-duration-normal) var(--animation-easing-smooth);
+}
+
+/* Light Theme Specific Enhancements */
+.light-theme {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+}
+
+.light-theme body {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+  color: #111827;
+}
+
+/* Light Theme Beautiful Gradients */
+.light-theme .page-gradient {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.light-theme .page-gradient:before {
+  content: "";
+  position: absolute;
+  inset: -20vh -10vw -10vh -10vw;
+  background: radial-gradient(60rem 40rem at 80% -10%, rgba(59, 130, 246, 0.08), transparent 60%),
+              radial-gradient(40rem 30rem at 0% 10%, rgba(139, 92, 246, 0.06), transparent 55%),
+              radial-gradient(30rem 20rem at 50% 50%, rgba(16, 185, 129, 0.04), transparent 70%);
+  pointer-events: none;
+  filter: blur(20px);
+  z-index: -1;
+  animation: gradientFloat 20s ease-in-out infinite;
+}
+
+.light-theme .page-gradient:after {
+  content: "";
+  position: absolute;
+  inset: -30vh -20vw -20vh -20vw;
+  background: radial-gradient(80rem 60rem at 20% 80%, rgba(236, 72, 153, 0.03), transparent 50%),
+              radial-gradient(50rem 40rem at 90% 20%, rgba(6, 182, 212, 0.05), transparent 60%);
+  pointer-events: none;
+  filter: blur(25px);
+  z-index: -1;
+  animation: gradientFloat 25s ease-in-out infinite reverse;
+}
+
+/* Light Theme Glass Morphism */
+.light-theme .indus-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .indus-card:hover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Light Theme Buttons */
+.light-theme .indus-button-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+}
+
+.light-theme .indus-button-primary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+}
+
+/* Light Theme Scrollbars */
+.light-theme ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.light-theme ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+}
+
+.light-theme ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Light Theme Text Gradients */
+.light-theme .indus-text-gradient {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Light Theme Glow Effects */
+.light-theme .indus-glow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+}
+
+.light-theme .indus-glow:hover {
+  box-shadow: 0 0 40px rgba(59, 130, 246, 0.3);
+}
+
+.light-theme .indus-border-glow {
+  border: 1px solid #3b82f6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+}
+
+.light-theme .indus-border-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+  border-color: #8b5cf6;
+}
+
+/* Light Theme Enhanced Glass */
+.light-theme .glass-enhanced {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+.light-theme .glass-enhanced:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Light Theme Beautiful Animations */
+.light-theme .pressable:hover {
+  transform: translateY(-2px) scale(1.02);
+  filter: saturate(1.1) brightness(1.05);
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.15);
+}
+
+.light-theme .hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .hover-glow:hover {
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+/* Light Theme Beautiful Gradients */
+.light-theme .indus-text-gradient {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* Light Theme Enhanced Cards */
+.light-theme .indus-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: all var(--animation-duration-normal) var(--animation-easing-smooth);
+}
+
+.light-theme .indus-card:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%);
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Light Theme Beautiful Buttons */
+.light-theme .indus-button-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.light-theme .indus-button-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left var(--animation-duration-slow) var(--animation-easing-smooth);
+}
+
+.light-theme .indus-button-primary:hover::before {
+  left: 100%;
+}
+
+.light-theme .indus-button-primary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #0891b2 100%);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* Light Theme Beautiful Scrollbars */
+.light-theme .main-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+}
+
+.light-theme .main-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #2563eb, #7c3aed, #0891b2);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+}
+
+/* Light Theme Beautiful Focus States */
+.light-theme input:focus,
+.light-theme textarea:focus,
+.light-theme select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Light Theme Beautiful Selection */
+.light-theme ::selection {
+  background: rgba(37, 99, 235, 0.2);
+  color: #111827;
+}
+
+.light-theme ::-moz-selection {
+  background: rgba(37, 99, 235, 0.2);
+  color: #111827;
+}
+
+/* Light Theme Enhanced Text Contrast */
+.light-theme h1,
+.light-theme h2,
+.light-theme h3,
+.light-theme h4,
+.light-theme h5,
+.light-theme h6 {
+  color: #111827;
+}
+
+.light-theme p,
+.light-theme span,
+.light-theme div {
+  color: #374151;
+}
+
+.light-theme .text-muted {
+  color: #6b7280;
+}
+
+/* Light Theme Enhanced Input Focus */
+.light-theme input:focus,
+.light-theme textarea:focus,
+.light-theme select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  background-color: #ffffff;
+}
+
+/* Light Theme Enhanced Button States */
+.light-theme button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.light-theme button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Light Theme Enhanced Card Text */
+.light-theme .indus-card h3,
+.light-theme .indus-card h4,
+.light-theme .indus-card h5 {
+  color: #111827;
+}
+
+.light-theme .indus-card p,
+.light-theme .indus-card span {
+  color: #374151;
+}
+
+/* Light Theme Enhanced Link States */
+.light-theme a {
+  color: #2563eb;
+  transition: color 0.2s ease;
+}
+
+.light-theme a:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* Light Theme Enhanced Form Labels */
+.light-theme label {
+  color: #374151;
+  font-weight: 600;
+}
+
+/* Light Theme Enhanced Placeholder Text */
+.light-theme input::placeholder,
+.light-theme textarea::placeholder {
+  color: #9ca3af;
+  opacity: 1;
 }
 
 /* Prevent scrolling across the app */

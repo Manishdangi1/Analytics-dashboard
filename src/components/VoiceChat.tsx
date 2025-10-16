@@ -840,8 +840,8 @@ export default function VoiceChat({
           disabled={isConnecting}
           className={`relative inline-flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-300 pressable ${
             isEnabled
-              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
-              : "bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:border-white/20"
+              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 dark:from-emerald-500 dark:to-teal-500 dark:text-white dark:shadow-emerald-500/30 light:from-emerald-600 light:to-teal-600 light:text-white light:shadow-emerald-500/40"
+              : "bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:border-white/20 dark:bg-white/5 dark:border-white/10 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:border-white/20 light:bg-gray-100/80 light:border-gray-300/60 light:text-gray-600 light:hover:bg-gray-200/90 light:hover:border-gray-400/70"
           } ${isConnecting ? "opacity-50 cursor-not-allowed" : ""}`}
           title={isEnabled ? "Disable voice chat" : "Enable voice chat"}
         >
@@ -870,23 +870,23 @@ export default function VoiceChat({
 
         {/* Simplified Status Indicator */}
         {isEnabled && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 dark:from-emerald-500/10 dark:to-teal-500/10 dark:border-emerald-500/20 light:from-emerald-500/20 light:to-teal-500/20 light:border-emerald-500/40 light:bg-emerald-50/80">
             {isListening && (
               <>
-                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="text-xs text-emerald-400 font-medium">Listening</span>
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse dark:bg-emerald-400 light:bg-emerald-500" />
+                <span className="text-xs text-emerald-400 font-medium dark:text-emerald-400 light:text-emerald-600">Listening</span>
               </>
             )}
             {isSpeaking && !isListening && (
               <>
-                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
-                <span className="text-xs text-purple-400 font-medium">Speaking</span>
+                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse dark:bg-purple-400 light:bg-purple-500" />
+                <span className="text-xs text-purple-400 font-medium dark:text-purple-400 light:text-purple-600">Speaking</span>
               </>
             )}
             {!isListening && !isSpeaking && (
               <>
-                <div className="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse" />
-                <span className="text-xs text-teal-400 font-medium">Active</span>
+                <div className="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse dark:bg-teal-400 light:bg-teal-500" />
+                <span className="text-xs text-teal-400 font-medium dark:text-teal-400 light:text-teal-600">Active</span>
               </>
             )}
           </div>

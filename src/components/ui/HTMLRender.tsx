@@ -16,16 +16,21 @@ export function HTMLRender({ html, className = "", height, isTextContent = false
   }, [html]);
 
   const srcDoc = useMemo(() => {
+    const isLightTheme = document.documentElement.classList.contains('light-theme');
+    const textColor = isLightTheme ? '#111827' : '#fff';
+    const borderColor = isLightTheme ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)';
+    const headerBg = isLightTheme ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)';
+    
     return `<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>
-      html,body{margin:0;padding:0;background:transparent;color:#fff;font-family:system-ui,-apple-system,sans-serif}
+      html,body{margin:0;padding:0;background:transparent;color:${textColor};font-family:system-ui,-apple-system,sans-serif}
       *,*:before,*:after{box-sizing:border-box}
       .plotly{width:100%!important;height:auto!important}
       .js-plotly-plot{width:100%!important;height:auto!important}
       svg{max-width:100%;height:auto}
       img{max-width:100%;height:auto}
       table{width:100%;border-collapse:collapse}
-      th,td{border:1px solid rgba(255,255,255,0.2);padding:8px;text-align:left}
-      th{background:rgba(255,255,255,0.1)}
+      th,td{border:1px solid ${borderColor};padding:8px;text-align:left}
+      th{background:${headerBg}}
     </style></head><body>${html}</body></html>`;
   }, [html]);
 
@@ -83,7 +88,7 @@ export function HTMLRender({ html, className = "", height, isTextContent = false
   return (
     <iframe
       ref={iframeRef}
-      className={"w-full rounded-md border border-white/10 bg-transparent " + className}
+      className={"w-full rounded-md border border-white/10 bg-transparent dark:border-white/10 light:border-gray-200/60 " + className}
       srcDoc={srcDoc}
       sandbox="allow-scripts allow-same-origin"
       style={{ minHeight: height || 'auto' }}

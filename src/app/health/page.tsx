@@ -21,17 +21,17 @@ export default function HealthPage() {
     return () => { mounted = false; };
   }, []);
   return (
-    <div className="min-h-screen p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Service Health</h1>
+    <div className="min-h-screen p-6 space-y-6 page-gradient">
+      <h1 className="text-2xl font-semibold text-white dark:text-white light:text-gray-800">Service Health</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h2 className="font-medium mb-2">Overview</h2>
-          {loading ? <p className="text-sm text-neutral-400">Loading…</p> : <p className="text-sm text-neutral-300">Overview ready.</p>}
+        <div className="indus-card p-4">
+          <h2 className="font-medium mb-2 text-white dark:text-white light:text-gray-800">Overview</h2>
+          {loading ? <p className="text-sm text-neutral-400 dark:text-neutral-400 light:text-gray-600">Loading…</p> : <p className="text-sm text-neutral-300 dark:text-neutral-300 light:text-gray-700">Overview ready.</p>}
         </div>
-        <div>
-          <h2 className="font-medium mb-2">Health</h2>
-          {loading ? <p className="text-sm text-neutral-400">Loading…</p> : (
-            ok ? <p className="text-sm text-neutral-300">Service healthy.</p> : <p className="text-sm text-red-400">Unhealthy.</p>
+        <div className="indus-card p-4">
+          <h2 className="font-medium mb-2 text-white dark:text-white light:text-gray-800">Health</h2>
+          {loading ? <p className="text-sm text-neutral-400 dark:text-neutral-400 light:text-gray-600">Loading…</p> : (
+            ok ? <p className="text-sm text-neutral-300 dark:text-neutral-300 light:text-gray-700">Service healthy.</p> : <p className="text-sm text-red-400 dark:text-red-400 light:text-red-600">Unhealthy.</p>
           )}
         </div>
       </div>

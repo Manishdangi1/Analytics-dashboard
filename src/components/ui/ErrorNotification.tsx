@@ -50,11 +50,11 @@ export default function ErrorNotification({ error, onDismiss, type = "error" }: 
   const getColors = () => {
     switch (type) {
       case "warning":
-        return "bg-yellow-500/10 border-yellow-500/20 text-yellow-200";
+        return "bg-yellow-500/10 border-yellow-500/20 text-yellow-200 dark:bg-yellow-500/10 dark:border-yellow-500/20 dark:text-yellow-200 light:bg-yellow-500/20 light:border-yellow-500/40 light:text-yellow-700";
       case "info":
-        return "bg-blue-500/10 border-blue-500/20 text-blue-200";
+        return "bg-blue-500/10 border-blue-500/20 text-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20 dark:text-blue-200 light:bg-blue-500/20 light:border-blue-500/40 light:text-blue-700";
       default:
-        return "bg-red-500/10 border-red-500/20 text-red-200";
+        return "bg-red-500/10 border-red-500/20 text-red-200 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-200 light:bg-red-500/20 light:border-red-500/40 light:text-red-700";
     }
   };
 
@@ -73,7 +73,7 @@ export default function ErrorNotification({ error, onDismiss, type = "error" }: 
               setIsVisible(false);
               setTimeout(onDismiss, 300);
             }}
-            className="text-neutral-400 hover:text-white transition-colors"
+            className="text-neutral-400 hover:text-white transition-colors dark:text-neutral-400 dark:hover:text-white light:text-gray-500 light:hover:text-gray-700"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />

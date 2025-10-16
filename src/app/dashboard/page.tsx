@@ -10,6 +10,7 @@ import ErrorNotification from "@/components/ui/ErrorNotification";
 import PinButton from "@/components/PinButton";
 import UnpinButton from "@/components/UnpinButton";
 import VoiceChat from "@/components/VoiceChat";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { components } from "@/types/api";
 import { getDashboardTranscriptId, setDashboardTranscriptId, clearDashboardTranscriptId } from "@/lib/dashboardSession";
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [chat, setChat] = useState<Array<{ role: "user" | "assistant"; text?: string; graphs?: GraphItem[]; userQuestion?: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [gridCols, setGridCols] = useState<1 | 2 | 3>(2);
   const [windowWidth, setWindowWidth] = useState(0);
 
@@ -279,11 +281,27 @@ export default function DashboardPage() {
 
   const [graphs, setGraphs] = useState<DashboardGraph[]>([]);
   const [isFetching, setIsFetching] = useState(false);
-  async function loadGraphs() {
+  const [lastGraphCount, setLastGraphCount] = useState(0);
+  
+  async function loadGraphs(force = false) {
+    // Don't fetch if already fetching unless forced
+    if (isFetching && !force) return;
+    
     setIsFetching(true);
     try {
       const res = await listDashboardGraphs({ active_only: true });
-      setGraphs(res?.graphs ?? []);
+      const newGraphs = res?.graphs ?? [];
+      
+      // Only update state if graphs actually changed
+      if (JSON.stringify(newGraphs) !== JSON.stringify(graphs)) {
+        setGraphs(newGraphs);
+        setLastGraphCount(newGraphs.length);
+        console.log(`Dashboard updated: ${newGraphs.length} graphs`);
+      }
+    } catch (error) {
+      console.error("Failed to load graphs:", error);
+      setGraphs([]);
+      setLastGraphCount(0);
     } finally {
       setIsFetching(false);
     }
@@ -291,6 +309,58 @@ export default function DashboardPage() {
   useEffect(() => {
     loadGraphs();
   }, []);
+
+  // Set up global refresh function for dashboard graphs
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs = loadGraphs;
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs;
+      }
+    };
+  }, []);
+
+  // Listen for custom dashboard update events
+  useEffect(() => {
+    const handleDashboardUpdate = () => {
+      console.log("Dashboard update event received, refreshing...");
+      loadGraphs(true); // Force refresh
+    };
+
+    // Listen for custom events
+    window.addEventListener('dashboard-update', handleDashboardUpdate);
+    
+    return () => {
+      window.removeEventListener('dashboard-update', handleDashboardUpdate);
+    };
+  }, []);
+
+  // Set up refresh only for specific events (focus, visibility change)
+  useEffect(() => {
+    const handleFocus = () => {
+      // Refresh graphs when window regains focus (user might have made changes in another tab)
+      if (!isFetching) {
+        loadGraphs();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      // Refresh when tab becomes visible
+      if (!document.hidden && !isFetching) {
+        loadGraphs();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isFetching, loadGraphs]);
 
   async function onAsk(e: React.FormEvent) {
     e.preventDefault();
@@ -364,7 +434,7 @@ export default function DashboardPage() {
       const timer = setTimeout(() => {
         setIsAwaitingAnswer(false);
         setResponseAdded(false);
-      }, 500); // Give enough time for complex graphs to render
+      }, 2300); // 2 extra seconds delay for better UX
       
       return () => clearTimeout(timer);
     }
@@ -379,21 +449,45 @@ export default function DashboardPage() {
   // Enhanced loading while checking authentication
   if (isCheckingAuth) {
     return (
-      <div className="h-screen flex items-center justify-center page-gradient">
-        <div className="text-center space-y-6">
+      <div className={`h-screen flex items-center justify-center ${
+        theme === 'light' 
+          ? 'bg-gradient-to-br from-blue-50 via-white to-purple-50' 
+          : 'page-gradient'
+      }`}>
+        <div className={`text-center space-y-6 ${
+          theme === 'light' 
+            ? 'bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-blue-100' 
+            : ''
+        }`}>
           <div className="relative">
-            <div className="w-16 h-16 rounded-full border-4 border-white/20 mx-auto"></div>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full border-4 border-transparent border-t-primary animate-spin"></div>
-            <div className="absolute top-1 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full border-4 border-transparent border-t-accent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+            <div className={`w-16 h-16 rounded-full border-4 mx-auto ${
+              theme === 'light' ? 'border-blue-200' : 'border-white/20'
+            }`}></div>
+            <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full border-4 border-transparent animate-spin ${
+              theme === 'light' ? 'border-t-blue-600' : 'border-t-primary'
+            }`}></div>
+            <div className={`absolute top-1 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full border-4 border-transparent animate-spin ${
+              theme === 'light' ? 'border-t-purple-600' : 'border-t-accent'
+            }`} style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-white indus-text-gradient">Loading Dashboard</h3>
-            <p className="text-white/70">Preparing your analytics workspace...</p>
+            <h3 className={`text-lg font-semibold ${
+              theme === 'light' 
+                ? 'text-black font-bold drop-shadow-sm' 
+                : 'text-white indus-text-gradient'
+            }`}>Loading Dashboard</h3>
+            <p className={theme === 'light' ? 'text-gray-800 font-semibold' : 'text-white/70'}>Preparing your analytics workspace...</p>
           </div>
           <div className="flex justify-center space-x-1">
-            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-            <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-            <div className="w-2 h-2 bg-success rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            <div className={`w-2 h-2 rounded-full animate-bounce ${
+              theme === 'light' ? 'bg-blue-600' : 'bg-primary'
+            }`} style={{ animationDelay: '0ms' }}></div>
+            <div className={`w-2 h-2 rounded-full animate-bounce ${
+              theme === 'light' ? 'bg-purple-600' : 'bg-accent'
+            }`} style={{ animationDelay: '150ms' }}></div>
+            <div className={`w-2 h-2 rounded-full animate-bounce ${
+              theme === 'light' ? 'bg-emerald-600' : 'bg-success'
+            }`} style={{ animationDelay: '300ms' }}></div>
           </div>
         </div>
       </div>
@@ -438,17 +532,17 @@ export default function DashboardPage() {
               <div>
                 <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${
                   theme === "light"
-                    ? "bg-gradient-to-r from-slate-900 via-blue-800 to-purple-800 bg-clip-text text-transparent"
+                    ? "bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent"
                     : "bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent"
                 }`}>Analytics Dashboard</h1>
-                <p className={theme === "light" ? "text-slate-700 text-sm hidden sm:block font-medium" : "text-slate-400 text-sm hidden sm:block"}>Real-time insights and data visualizations</p>
+                <p className={theme === "light" ? "text-gray-700 text-sm hidden sm:block font-medium" : "text-slate-400 text-sm hidden sm:block"}>Real-time insights and data visualizations</p>
               </div>
             </div>
             
             <div className="flex items-center gap-4">
               {/* Enhanced Grid Controls */}
               <div className="hidden sm:flex items-center gap-1 text-xs">
-                <span className={theme === "light" ? "text-slate-700 font-semibold" : "text-slate-400"}>Layout</span>
+                <span className={theme === "light" ? "text-gray-700 font-semibold" : "text-slate-400"}>Layout</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -460,7 +554,7 @@ export default function DashboardPage() {
                     (gridCols === 1 
                       ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
                       : theme === "light"
-                      ? "bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-600 text-slate-700 shadow-sm"
+                      ? "bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-blue-600 text-gray-700 shadow-sm"
                       : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30 text-slate-400")
                   }
                   title="1 column"
@@ -480,7 +574,7 @@ export default function DashboardPage() {
                     (gridCols === 2 
                       ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
                       : theme === "light"
-                      ? "bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-600 text-slate-700 shadow-sm"
+                      ? "bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-blue-600 text-gray-700 shadow-sm"
                       : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30 text-slate-400")
                   }
                   title="2 columns"
@@ -501,7 +595,7 @@ export default function DashboardPage() {
                     (gridCols === 3 
                       ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
                       : theme === "light"
-                      ? "bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-600 text-slate-700 shadow-sm"
+                      ? "bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-blue-600 text-gray-700 shadow-sm"
                       : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30 text-slate-400")
                   }
                   title="3 columns"
@@ -517,11 +611,11 @@ export default function DashboardPage() {
               {/* Enhanced User Info and Actions */}
               <div className="flex items-center gap-3">
                 {/* Theme Toggle */}
-                {/* <ThemeToggle /> */}
+                <ThemeToggle />
                 
                 <div className={`flex items-center gap-2 px-3 py-2 rounded-lg hover-lift group ${
                   theme === "light" 
-                    ? "bg-slate-50 border border-slate-300 shadow-sm" 
+                    ? "bg-gray-50 border border-gray-300 shadow-sm" 
                     : "indus-card"
                 }`}>
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/30">
@@ -529,10 +623,14 @@ export default function DashboardPage() {
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <span className={`text-sm font-medium ${theme === "light" ? "text-slate-800" : "text-white"}`}>
+                  <span className={`text-sm font-medium ${theme === "light" ? "text-gray-800" : "text-white"}`}>
                     {isLoadingUser ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 border border-white/30 border-t-transparent rounded-full animate-spin" />
+                        <div className={`w-3 h-3 border rounded-full animate-spin ${
+                          theme === 'light' 
+                            ? 'border-gray-300 border-t-gray-600' 
+                            : 'border-white/30 border-t-transparent'
+                        }`} />
                         <span>Loading...</span>
                       </div>
                     ) : (
@@ -547,7 +645,7 @@ export default function DashboardPage() {
                   }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all pressable hover-glow group ${
                     theme === "light"
-                      ? "bg-slate-50 border border-slate-300 hover:bg-red-50 hover:border-red-400 shadow-sm"
+                      ? "bg-gray-50 border border-gray-300 hover:bg-red-50 hover:border-red-400 shadow-sm"
                       : "indus-card hover:bg-white/10"
                   }`}
                   title="Logout"
@@ -557,7 +655,7 @@ export default function DashboardPage() {
                   }`}>
                     <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
                   </svg>
-                  <span className={`text-sm group-hover:text-red-600 transition-colors ${theme === "light" ? "text-slate-700 font-medium" : "text-neutral-400"}`}>Logout</span>
+                  <span className={`text-sm group-hover:text-red-600 transition-colors ${theme === "light" ? "text-gray-700 font-medium" : "text-neutral-400"}`}>Logout</span>
                 </button>
               </div>
             </div>
@@ -568,28 +666,42 @@ export default function DashboardPage() {
           <div className="fade-in-up">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <h2 className={`text-xl font-semibold ${theme === "light" ? "text-slate-900" : "text-gray-100"}`}>Visualizations</h2>
+                <h2 className={`text-xl font-semibold ${theme === "light" ? "text-gray-900" : "text-gray-100"}`}>Visualizations</h2>
                 <div className="w-8 h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
                 <span className={`text-xs px-3 py-1.5 rounded-full border ${
                   theme === "light"
-                    ? "text-slate-700 bg-slate-50 border-slate-300 shadow-sm font-medium"
+                    ? "text-gray-700 bg-gray-50 border-gray-300 shadow-sm font-medium"
                     : "text-slate-400 bg-slate-800/60 border-slate-700/50"
                 }`}>
                   <span className={theme === "light" ? "text-blue-700 font-bold" : "text-blue-400 font-semibold"}>{gridCols}</span> {gridCols === 1 ? 'Column' : 'Columns'}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={loadGraphs}
-                  disabled={isFetching}
-                  className="flex items-center gap-2 px-4 py-2 text-sm indus-card rounded-lg hover:bg-white/10 transition-all pressable hover-glow disabled:opacity-50 group"
+              
+              {/* Refresh Button */}
+              <button
+                onClick={() => loadGraphs(true)}
+                disabled={isFetching}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all pressable hover-glow group ${
+                  theme === "light"
+                    ? "bg-gray-50 border border-gray-300 hover:bg-gray-100 hover:border-blue-400 shadow-sm"
+                    : "indus-card hover:bg-white/10"
+                } ${isFetching ? "opacity-50 cursor-not-allowed" : ""}`}
+                title="Refresh dashboard"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  viewBox="0 0 20 20" 
+                  fill="currentColor" 
+                  className={`w-4 h-4 group-hover:text-blue-600 group-hover:rotate-180 transition-all ${
+                    theme === "light" ? "text-slate-600" : "text-neutral-400"
+                  } ${isFetching ? "animate-spin" : ""}`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 group-hover:rotate-180 transition-transform ${isFetching ? 'animate-spin' : ''}`}>
-                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                  </svg>
-                  <span className="group-hover:translate-x-0.5 transition-transform">Refresh</span>
-                </button>
-              </div>
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+                <span className={`text-sm group-hover:text-blue-600 transition-colors ${theme === "light" ? "text-gray-700 font-medium" : "text-neutral-400"}`}>
+                  {isFetching ? "Refreshing..." : "Refresh"}
+                </span>
+              </button>
             </div>
             
             {isFetching ? (
@@ -625,10 +737,18 @@ export default function DashboardPage() {
                   </div>
                   
                   <div>
-                    <h3 className="text-4xl font-extrabold bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent mb-4">
+                    <h3 className={`text-4xl font-extrabold bg-gradient-to-r bg-clip-text text-transparent mb-4 ${
+                      theme === 'light' 
+                        ? 'from-gray-900 via-blue-600 to-purple-600' 
+                        : 'from-gray-100 via-blue-200 to-purple-200'
+                    }`}>
                       Your Dashboard Awaits
                     </h3>
-                    <p className="text-lg text-slate-300 leading-relaxed max-w-xl mx-auto">
+                    <p className={`text-lg leading-relaxed max-w-xl mx-auto ${
+                      theme === 'light' 
+                        ? 'text-gray-600' 
+                        : 'text-slate-300'
+                    }`}>
                       Start a conversation with AI to generate beautiful visualizations and pin your favorite insights here
                     </p>
                   </div>
@@ -636,34 +756,76 @@ export default function DashboardPage() {
 
                 {/* Feature Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
-                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-6 rounded-2xl backdrop-blur-xl text-center hover:border-blue-500/40 transition-all duration-300 hover:scale-105">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-blue-400">
+                  <div className={`p-6 rounded-2xl backdrop-blur-xl text-center transition-all duration-300 hover:scale-105 ${
+                    theme === 'light'
+                      ? 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 hover:border-blue-400 shadow-lg'
+                      : 'bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 hover:border-blue-500/40'
+                  }`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 ${
+                      theme === 'light'
+                        ? 'bg-gradient-to-br from-blue-100 to-purple-100 border border-blue-200'
+                        : 'bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30'
+                    }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-6 h-6 ${
+                        theme === 'light' ? 'text-blue-600' : 'text-blue-400'
+                      }`}>
                         <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
                       </svg>
                     </div>
-                    <h4 className="text-sm font-semibold text-gray-100 mb-2">Ask Questions</h4>
-                    <p className="text-xs text-slate-400">Chat with AI to analyze your data</p>
+                    <h4 className={`text-sm font-semibold mb-2 ${
+                      theme === 'light' ? 'text-gray-900' : 'text-gray-100'
+                    }`}>Ask Questions</h4>
+                    <p className={`text-xs ${
+                      theme === 'light' ? 'text-gray-600' : 'text-slate-400'
+                    }`}>Chat with AI to analyze your data</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-6 rounded-2xl backdrop-blur-xl text-center hover:border-purple-500/40 transition-all duration-300 hover:scale-105">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 flex items-center justify-center mx-auto mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-purple-400">
+                  <div className={`p-6 rounded-2xl backdrop-blur-xl text-center transition-all duration-300 hover:scale-105 ${
+                    theme === 'light'
+                      ? 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 hover:border-purple-400 shadow-lg'
+                      : 'bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 hover:border-purple-500/40'
+                  }`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 ${
+                      theme === 'light'
+                        ? 'bg-gradient-to-br from-purple-100 to-blue-100 border border-purple-200'
+                        : 'bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30'
+                    }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-6 h-6 ${
+                        theme === 'light' ? 'text-purple-600' : 'text-purple-400'
+                      }`}>
                         <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                       </svg>
                     </div>
-                    <h4 className="text-sm font-semibold text-gray-100 mb-2">Generate Graphs</h4>
-                    <p className="text-xs text-slate-400">Get instant visualizations from your queries</p>
+                    <h4 className={`text-sm font-semibold mb-2 ${
+                      theme === 'light' ? 'text-gray-900' : 'text-gray-100'
+                    }`}>Generate Graphs</h4>
+                    <p className={`text-xs ${
+                      theme === 'light' ? 'text-gray-600' : 'text-slate-400'
+                    }`}>Get instant visualizations from your queries</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-6 rounded-2xl backdrop-blur-xl text-center hover:border-emerald-500/40 transition-all duration-300 hover:scale-105">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-emerald-400">
+                  <div className={`p-6 rounded-2xl backdrop-blur-xl text-center transition-all duration-300 hover:scale-105 ${
+                    theme === 'light'
+                      ? 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 hover:border-emerald-400 shadow-lg'
+                      : 'bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 hover:border-emerald-500/40'
+                  }`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 ${
+                      theme === 'light'
+                        ? 'bg-gradient-to-br from-emerald-100 to-teal-100 border border-emerald-200'
+                        : 'bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30'
+                    }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-6 h-6 ${
+                        theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'
+                      }`}>
                         <path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z" />
                       </svg>
                     </div>
-                    <h4 className="text-sm font-semibold text-gray-100 mb-2">Pin Insights</h4>
-                    <p className="text-xs text-slate-400">Save your best visualizations here</p>
+                    <h4 className={`text-sm font-semibold mb-2 ${
+                      theme === 'light' ? 'text-gray-900' : 'text-gray-100'
+                    }`}>Pin Insights</h4>
+                    <p className={`text-xs ${
+                      theme === 'light' ? 'text-gray-600' : 'text-slate-400'
+                    }`}>Save your best visualizations here</p>
                   </div>
                 </div>
 
@@ -675,28 +837,54 @@ export default function DashboardPage() {
                       chatInput.focus();
                     }
                   }}
-                  className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all duration-200 pressable shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 hover:scale-105 group"
+                  className={`inline-flex items-center gap-3 px-8 py-4 rounded-2xl transition-all duration-200 pressable hover:scale-105 group border-2 ${
+                    theme === 'light'
+                      ? 'bg-gradient-to-br from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 shadow-2xl shadow-blue-500/30 hover:shadow-3xl hover:shadow-blue-500/40 text-blue-900 border-blue-300'
+                      : 'bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 text-white border-blue-400/30'
+                  }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:rotate-12 transition-transform duration-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 group-hover:rotate-12 transition-transform duration-300 ${
+                    theme === 'light' ? 'text-blue-700' : 'text-white drop-shadow-sm'
+                  }`}>
                     <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
                   </svg>
-                  <span className="text-white font-semibold text-lg">Start Your First Query</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform duration-300">
+                  <span className={`font-bold text-lg ${
+                    theme === 'light'
+                      ? 'text-blue-900 font-extrabold'
+                      : 'text-white drop-shadow-lg'
+                  }`}>Start Your First Query</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 group-hover:translate-x-1 transition-transform duration-300 ${
+                    theme === 'light' ? 'text-blue-700' : 'text-white drop-shadow-sm'
+                  }`}>
                     <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 </button>
 
                 {/* Quick Examples */}
                 <div className="text-center space-y-3">
-                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Try asking</p>
+                  <p className={`text-xs uppercase tracking-wider font-semibold ${
+                    theme === 'light' ? 'text-gray-500' : 'text-slate-500'
+                  }`}>Try asking</p>
                   <div className="flex flex-wrap justify-center gap-2">
-                    <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
+                    <span className={`px-3 py-1.5 rounded-lg text-xs ${
+                      theme === 'light'
+                        ? 'bg-gray-100 border border-gray-200 text-gray-600'
+                        : 'bg-slate-800/60 border border-slate-700/50 text-slate-400'
+                    }`}>
                       &quot;Show me sales trends&quot;
                     </span>
-                    <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
+                    <span className={`px-3 py-1.5 rounded-lg text-xs ${
+                      theme === 'light'
+                        ? 'bg-gray-100 border border-gray-200 text-gray-600'
+                        : 'bg-slate-800/60 border border-slate-700/50 text-slate-400'
+                    }`}>
                       &quot;Top performing products&quot;
                     </span>
-                    <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
+                    <span className={`px-3 py-1.5 rounded-lg text-xs ${
+                      theme === 'light'
+                        ? 'bg-gray-100 border border-gray-200 text-gray-600'
+                        : 'bg-slate-800/60 border border-slate-700/50 text-slate-400'
+                    }`}>
                       &quot;Revenue by month&quot;
                     </span>
                   </div>
@@ -712,16 +900,36 @@ export default function DashboardPage() {
                 {/* Debug: Show test cards when no graphs */}
                 {graphs.length === 0 && (
                   <>
-                    <div className="indus-card h-[600px] flex flex-col bg-primary/10 border border-primary/20">
-                      <div className="flex-shrink-0 p-6 pb-4">
-                        <h3 className="text-white font-semibold mb-2">Test Card 1</h3>
-                        <p className="text-neutral-400 text-sm">This is a test card to verify grid layout</p>
+                    <div className={`h-[600px] flex flex-col rounded-2xl border p-6 ${
+                      theme === 'light'
+                        ? 'bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200'
+                        : 'indus-card bg-primary/10 border-primary/20'
+                    }`}>
+                      <div className="flex-shrink-0 pb-4">
+                        <h3 className={`font-semibold mb-2 ${
+                          theme === 'light' ? 'text-gray-900' : 'text-white'
+                        }`}>Test Card 1</h3>
+                        <p className={`text-sm ${
+                          theme === 'light' ? 'text-gray-600' : 'text-neutral-400'
+                        }`}>This is a test card to verify grid layout</p>
                       </div>
-                      <div className="flex-1 px-6 pb-4">
-                        <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                          <div className="text-center text-neutral-400">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-primary">
+                      <div className="flex-1 pb-4">
+                        <div className={`h-full rounded-lg flex items-center justify-center ${
+                          theme === 'light'
+                            ? 'bg-white border border-gray-200'
+                            : 'bg-white/5 border border-white/10'
+                        }`}>
+                          <div className={`text-center ${
+                            theme === 'light' ? 'text-gray-500' : 'text-neutral-400'
+                          }`}>
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                              theme === 'light'
+                                ? 'bg-gradient-to-r from-blue-100 to-purple-100'
+                                : 'bg-gradient-to-r from-primary/20 to-accent/20'
+                            }`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-8 h-8 ${
+                                theme === 'light' ? 'text-blue-600' : 'text-primary'
+                              }`}>
                                 <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                               </svg>
                             </div>
@@ -729,20 +937,42 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex-shrink-0 px-6 pb-6">
-                        <p className="text-xs text-neutral-500">Test content for layout verification</p>
+                      <div className="flex-shrink-0 pb-6">
+                        <p className={`text-xs ${
+                          theme === 'light' ? 'text-gray-500' : 'text-neutral-500'
+                        }`}>Test content for layout verification</p>
                       </div>
                     </div>
-                    <div className="indus-card h-[600px] flex flex-col bg-accent/10 border border-accent/20">
-                      <div className="flex-shrink-0 p-6 pb-4">
-                        <h3 className="text-white font-semibold mb-2">Test Card 2</h3>
-                        <p className="text-neutral-400 text-sm">Grid should change when you click buttons</p>
+                    <div className={`h-[600px] flex flex-col rounded-2xl border p-6 ${
+                      theme === 'light'
+                        ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
+                        : 'indus-card bg-accent/10 border-accent/20'
+                    }`}>
+                      <div className="flex-shrink-0 pb-4">
+                        <h3 className={`font-semibold mb-2 ${
+                          theme === 'light' ? 'text-gray-900' : 'text-white'
+                        }`}>Test Card 2</h3>
+                        <p className={`text-sm ${
+                          theme === 'light' ? 'text-gray-600' : 'text-neutral-400'
+                        }`}>Grid should change when you click buttons</p>
                       </div>
-                      <div className="flex-1 px-6 pb-4">
-                        <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                          <div className="text-center text-neutral-400">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-accent/20 to-primary/20 flex items-center justify-center mx-auto mb-4">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-accent">
+                      <div className="flex-1 pb-4">
+                        <div className={`h-full rounded-lg flex items-center justify-center ${
+                          theme === 'light'
+                            ? 'bg-white border border-gray-200'
+                            : 'bg-white/5 border border-white/10'
+                        }`}>
+                          <div className={`text-center ${
+                            theme === 'light' ? 'text-gray-500' : 'text-neutral-400'
+                          }`}>
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                              theme === 'light'
+                                ? 'bg-gradient-to-r from-green-100 to-emerald-100'
+                                : 'bg-gradient-to-r from-accent/20 to-primary/20'
+                            }`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-8 h-8 ${
+                                theme === 'light' ? 'text-green-600' : 'text-accent'
+                              }`}>
                                 <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                               </svg>
                             </div>
@@ -750,20 +980,42 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex-shrink-0 px-6 pb-6">
-                        <p className="text-xs text-neutral-500">Test content for layout verification</p>
+                      <div className="flex-shrink-0 pb-6">
+                        <p className={`text-xs ${
+                          theme === 'light' ? 'text-gray-500' : 'text-neutral-500'
+                        }`}>Test content for layout verification</p>
                       </div>
                     </div>
-                    <div className="indus-card h-[600px] flex flex-col bg-success/10 border border-success/20">
-                      <div className="flex-shrink-0 p-6 pb-4">
-                        <h3 className="text-white font-semibold mb-2">Test Card 3</h3>
-                        <p className="text-neutral-400 text-sm">Current layout: {getGridColumns()}</p>
+                    <div className={`h-[600px] flex flex-col rounded-2xl border p-6 ${
+                      theme === 'light'
+                        ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200'
+                        : 'indus-card bg-success/10 border-success/20'
+                    }`}>
+                      <div className="flex-shrink-0 pb-4">
+                        <h3 className={`font-semibold mb-2 ${
+                          theme === 'light' ? 'text-gray-900' : 'text-white'
+                        }`}>Test Card 3</h3>
+                        <p className={`text-sm ${
+                          theme === 'light' ? 'text-gray-600' : 'text-neutral-400'
+                        }`}>Current layout: {getGridColumns()}</p>
                       </div>
-                      <div className="flex-1 px-6 pb-4">
-                        <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                          <div className="text-center text-neutral-400">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-success/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-success">
+                      <div className="flex-1 pb-4">
+                        <div className={`h-full rounded-lg flex items-center justify-center ${
+                          theme === 'light'
+                            ? 'bg-white border border-gray-200'
+                            : 'bg-white/5 border border-white/10'
+                        }`}>
+                          <div className={`text-center ${
+                            theme === 'light' ? 'text-gray-500' : 'text-neutral-400'
+                          }`}>
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                              theme === 'light'
+                                ? 'bg-gradient-to-r from-orange-100 to-amber-100'
+                                : 'bg-gradient-to-r from-success/20 to-accent/20'
+                            }`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-8 h-8 ${
+                                theme === 'light' ? 'text-orange-600' : 'text-success'
+                              }`}>
                                 <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                               </svg>
                             </div>
@@ -771,8 +1023,10 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex-shrink-0 px-6 pb-6">
-                        <p className="text-xs text-neutral-500">Test content for layout verification</p>
+                      <div className="flex-shrink-0 pb-6">
+                        <p className={`text-xs ${
+                          theme === 'light' ? 'text-gray-500' : 'text-neutral-500'
+                        }`}>Test content for layout verification</p>
                       </div>
                     </div>
                   </>
@@ -1012,8 +1266,14 @@ export default function DashboardPage() {
                 <div className={`max-w-[80%] ${item.role === "user" ? "ml-12" : "mr-12"}`}>
                   {/* User Message */}
                   {item.role === "user" ? (
-                    <div className="bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-2xl px-5 py-3.5 shadow-xl max-w-[85%]">
-                      <div className="text-[15px] leading-relaxed font-medium">
+                    <div className={`rounded-2xl px-5 py-3.5 shadow-xl max-w-[85%] ${
+                      theme === 'light'
+                        ? 'bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-blue-500/20'
+                        : 'bg-gradient-to-br from-blue-600 to-purple-600 text-white'
+                    }`}>
+                      <div className={`text-[15px] leading-relaxed ${
+                        theme === 'light' ? 'font-medium' : 'font-medium'
+                      }`}>
                         <HTMLRender html={item.text || ""} isTextContent={true} />
                       </div>
                     </div>
@@ -1110,10 +1370,10 @@ export default function DashboardPage() {
                                     <HTMLRender html={graph.html} />
                                   </div>
                                 )}
-                                {!graph.html && (graph as { data?: unknown }).data && (
+                                {!graph.html && !!(graph as { data?: unknown }).data && (
                                   <div className="w-full h-full min-h-[300px]">
                                     <ChartRenderer 
-                                      data={(graph as { data?: unknown }).data} 
+                                      data={(graph as { data?: unknown }).data as any} 
                                       type={graph.graph_type || 'bar'} 
                                       title={graph.title || undefined}
                                       className="w-full h-full"
@@ -1128,8 +1388,12 @@ export default function DashboardPage() {
                                           <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                                         </svg>
                                       </div>
-                                      <p className="text-sm font-medium">Graph Loading...</p>
-                                      <p className="text-xs text-neutral-500 mt-1">Rendering visualization</p>
+                                      <p className={`text-sm font-medium ${
+                                        theme === 'light' ? 'text-gray-800' : 'text-white'
+                                      }`}>Graph Loading...</p>
+                                      <p className={`text-xs mt-1 ${
+                                        theme === 'light' ? 'text-gray-500' : 'text-neutral-500'
+                                      }`}>Rendering visualization</p>
                                     </div>
                                   </div>
                                 )}
@@ -1177,14 +1441,26 @@ export default function DashboardPage() {
 
           {isAwaitingAnswer && (
             <div className="flex justify-start">
-              <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/60 rounded-2xl px-5 py-3.5 backdrop-blur-md mr-12 shadow-xl">
+              <div className={`bg-gradient-to-br rounded-2xl px-5 py-3.5 backdrop-blur-md mr-12 shadow-xl ${
+                theme === 'light' 
+                  ? 'from-gray-100/90 to-gray-200/90 border border-gray-300/60' 
+                  : 'from-slate-800/90 to-slate-900/90 border border-slate-700/60'
+              }`}>
                 <div className="flex items-center gap-3">
                   <div className="flex space-x-1.5">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      theme === 'light' ? 'bg-blue-500' : 'bg-blue-400'
+                    }`} style={{ animationDelay: '0ms' }} />
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      theme === 'light' ? 'bg-purple-500' : 'bg-purple-400'
+                    }`} style={{ animationDelay: '150ms' }} />
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      theme === 'light' ? 'bg-blue-500' : 'bg-blue-400'
+                    }`} style={{ animationDelay: '300ms' }} />
                   </div>
-                  <span className="text-[15px] text-gray-100 font-medium">Analyzing your data...</span>
+                  <span className={`text-[15px] font-medium ${
+                    theme === 'light' ? 'text-gray-700' : 'text-gray-100'
+                  }`}>Analyzing your data...</span>
                 </div>
               </div>
             </div>
@@ -1193,7 +1469,11 @@ export default function DashboardPage() {
         </div>
         
         {/* Voice Chat Controls */}
-        <div className="flex-shrink-0 p-4 border-t border-slate-700/50 bg-gradient-to-b from-slate-900/70 to-slate-950/80 backdrop-blur-md">
+        <div className={`flex-shrink-0 p-4 border-t backdrop-blur-md ${
+          theme === 'light'
+            ? 'border-gray-200/60 bg-gradient-to-b from-gray-50/90 to-white/95 shadow-lg'
+            : 'border-slate-700/50 bg-gradient-to-b from-slate-900/70 to-slate-950/80'
+        }`}>
           <div className="flex flex-col items-center gap-3">
             <VoiceChat
               onTranscript={handleVoiceTranscript}
@@ -1255,11 +1535,15 @@ export default function DashboardPage() {
               </div>
               <button
                 type="submit"
-                disabled={!question.trim() || isAwaitingAnswer}
+                disabled={!question.trim() || isSending || isAwaitingAnswer}
                 className="inline-flex items-center justify-center w-[52px] h-[52px] rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 disabled:opacity-40 disabled:cursor-not-allowed hover:from-blue-500 hover:to-purple-500 transition-all duration-200 shadow-lg shadow-blue-500/20 pressable hover-scale group"
               >
-                {isAwaitingAnswer ? (
-                  <div className="w-5 h-5 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
+                {(isSending || isAwaitingAnswer) ? (
+                  <div className={`w-5 h-5 border-2 rounded-full animate-spin ${
+                    theme === 'light' 
+                      ? 'border-gray-300 border-t-gray-600' 
+                      : 'border-white/50 border-t-transparent'
+                  }`} />
                 ) : (
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                     <path d="M10.894 2.553a1 1 0 0 0-1.788 0l-7 14a1 1 0 0 0 1.169 1.409l5-1.429A1 1 0 0 0 9 15.571V11a1 1 0 1 1 2 0v4.571a1 1 0 0 0 .725.962l5 1.428a1 1 0 0 0 1.17-1.408l-7-14Z" />
@@ -1268,51 +1552,51 @@ export default function DashboardPage() {
               </button>
             </div>
             
-            {/* Enhanced Quick Actions */}
+            {/* Preset Questions */}
             <div className="flex flex-wrap gap-2 no-scrollbar">
               <button
                 type="button"
-                onClick={() => setQuestion("Show me sales trends for the last quarter")}
+                onClick={() => setQuestion("How total sales by category")}
                 className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
                   theme === "light"
                     ? "bg-slate-50 border-slate-300 hover:bg-blue-50 hover:border-blue-500 text-slate-700 hover:text-blue-800 shadow-sm"
                     : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-blue-500/30 text-slate-300 hover:text-gray-100"
                 }`}
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Sales Trends</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Sales by Category</span>
               </button>
               <button
                 type="button"
-                onClick={() => setQuestion("What are the top performing products?")}
+                onClick={() => setQuestion("Monthly sales trend for 2025")}
                 className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
                   theme === "light"
                     ? "bg-slate-50 border-slate-300 hover:bg-purple-50 hover:border-purple-500 text-slate-700 hover:text-purple-800 shadow-sm"
                     : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-purple-500/30 text-slate-300 hover:text-gray-100"
                 }`}
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Top Products</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Monthly Sales 2025</span>
               </button>
               <button
                 type="button"
-                onClick={() => setQuestion("Create a pie chart of customer segments")}
+                onClick={() => setQuestion("Attendance rate by department")}
                 className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
                   theme === "light"
                     ? "bg-slate-50 border-slate-300 hover:bg-teal-50 hover:border-teal-500 text-slate-700 hover:text-teal-800 shadow-sm"
                     : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-teal-500/30 text-slate-300 hover:text-gray-100"
                 }`}
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Customer Segments</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Attendance by Dept</span>
               </button>
               <button
                 type="button"
-                onClick={() => setQuestion("Show revenue by month")}
+                onClick={() => setQuestion("Which products are top performers?")}
                 className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
                   theme === "light"
                     ? "bg-slate-50 border-slate-300 hover:bg-emerald-50 hover:border-emerald-500 text-slate-700 hover:text-emerald-800 shadow-sm"
                     : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-emerald-500/30 text-slate-300 hover:text-gray-100"
                 }`}
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Revenue Analysis</span>
+                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Top Performers</span>
               </button>
             </div>
           </form>
@@ -1360,6 +1644,7 @@ function ChatHistoryPanel({
   onDelete: (id: string) => void | Promise<void>;
   onClose: () => void;
 }) {
+  const { theme } = useTheme();
   const [items, setItems] = useState<Array<{ id?: string; title?: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1404,7 +1689,11 @@ function ChatHistoryPanel({
         <button onClick={onClose} className="text-xs text-neutral-400 hover:text-neutral-200">Close</button>
       </div>
       {loading ? (
-        <div className="h-8 skeleton rounded" />
+        <div className={`h-8 rounded ${
+          theme === 'light' 
+            ? 'bg-gray-200 animate-pulse' 
+            : 'skeleton'
+        }`} />
       ) : (
         <ul className="max-h-56 overflow-auto space-y-1 compact-scrollbar">
           {(items ?? [])?.map((t, i: number) => {
@@ -1510,14 +1799,20 @@ function ChatHistoryPanel({
 }
 
 function ChatHistoryButton({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  const { theme } = useTheme();
+  
   return (
     <button
       type="button"
       onClick={onToggle}
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium pressable ${
-        isOpen 
-          ? "bg-white/20 text-white border border-white/30" 
-          : "bg-white/10 text-white/80 hover:bg-white/15 border border-white/20"
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium pressable transition-all duration-200 ${
+        theme === 'light'
+          ? isOpen
+            ? "bg-blue-100 text-blue-800 border border-blue-200 shadow-md"
+            : "bg-white/80 text-gray-700 hover:bg-blue-50 border border-gray-200 shadow-sm hover:shadow-md"
+          : isOpen 
+            ? "bg-white/20 text-white border border-white/30" 
+            : "bg-white/10 text-white/80 hover:bg-white/15 border border-white/20"
       }`}
       title="View chat history"
     >
@@ -1530,11 +1825,17 @@ function ChatHistoryButton({ isOpen, onToggle }: { isOpen: boolean; onToggle: ()
 }
 
 function NewChatButton({ onNew }: { onNew: () => void }) {
+  const { theme } = useTheme();
+  
   return (
     <button
       type="button"
       onClick={onNew}
-      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-4 py-2 text-xs font-semibold pressable shadow-lg shadow-blue-500/30 transition-all duration-200 hover:scale-105"
+      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold pressable transition-all duration-200 hover:scale-105 ${
+        theme === 'light'
+          ? 'bg-gradient-to-br from-blue-500 to-purple-500 hover:from-blue-400 hover:to-purple-400 shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/25'
+          : 'bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 shadow-lg shadow-blue-500/30'
+      }`}
       title="Start a new chat"
     >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">

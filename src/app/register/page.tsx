@@ -2,7 +2,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "@/components/ThemeToggle";
+import Link from "next/link";
 export default function RegisterPage() {
+  const { theme } = useTheme();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,14 +37,35 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+    <div className={`h-screen relative overflow-hidden ${
+      theme === "light"
+        ? "bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50"
+        : "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
+    }`}>
+      {/* Theme Toggle - Fixed Position */}
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
+      
       {/* Modern gradient orbs */}
-      <div className="pointer-events-none absolute -top-32 -left-24 h-80 w-80 rounded-full bg-gradient-to-br from-blue-600/20 to-purple-600/20 blur-3xl animate-pulse" />
-      <div className="pointer-events-none absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-gradient-to-br from-purple-600/20 to-blue-600/20 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className={`pointer-events-none absolute -top-32 -left-24 h-80 w-80 rounded-full blur-3xl animate-pulse ${
+        theme === "light"
+          ? "bg-gradient-to-br from-blue-400/30 to-purple-400/30"
+          : "bg-gradient-to-br from-blue-600/20 to-purple-600/20"
+      }`} />
+      <div className={`pointer-events-none absolute -bottom-24 -right-24 h-80 w-80 rounded-full blur-3xl animate-pulse ${
+        theme === "light"
+          ? "bg-gradient-to-br from-purple-400/30 to-blue-400/30"
+          : "bg-gradient-to-br from-purple-600/20 to-blue-600/20"
+      }`} style={{ animationDelay: '1s' }} />
       
       <div className="h-full w-full flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-10 rounded-3xl backdrop-blur-xl shadow-2xl glass-fade-in fade-in-up">
+          <div className={`p-10 rounded-3xl backdrop-blur-xl shadow-2xl glass-fade-in fade-in-up ${
+            theme === "light"
+              ? "bg-white/90 border border-gray-200"
+              : "bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50"
+          }`}>
             {/* Header */}
             <div className="text-center mb-10">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center mx-auto mb-5 shadow-xl shadow-blue-500/30">
@@ -48,56 +73,76 @@ export default function RegisterPage() {
                   <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
                 </svg>
               </div>
-              <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent mb-3">Create Account</h1>
-              <p className="text-slate-400 text-[15px]">Join us and start exploring data insights</p>
+              <h1 className={`text-4xl font-extrabold tracking-tight mb-3 ${
+                theme === "light"
+                  ? "bg-gradient-to-r from-gray-800 via-blue-700 to-purple-700 bg-clip-text text-transparent"
+                  : "bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent"
+              }`}>Create Account</h1>
+              <p className={`text-[15px] ${theme === "light" ? "text-gray-600" : "text-slate-400"}`}>Join us and start exploring data insights</p>
             </div>
 
             {/* Form */}
             <form onSubmit={onSubmit} className="space-y-5">
               <div className="grid grid-cols-1 gap-5">
                 <div className="space-y-2.5">
-                  <label className="text-[14px] font-semibold text-slate-300">Full Name</label>
+                  <label className={`text-[14px] font-semibold ${theme === "light" ? "text-gray-700" : "text-slate-300"}`}>Full Name</label>
                   <input
                     placeholder="Enter your full name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-xl text-gray-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-[15px]"
+                    className={`w-full px-4 py-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-[15px] ${
+                      theme === "light"
+                        ? "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400"
+                        : "bg-slate-800/60 border-slate-700/60 text-gray-100 placeholder-slate-500"
+                    }`}
                     required
                   />
                 </div>
 
                 <div className="space-y-2.5">
-                  <label className="text-[14px] font-semibold text-slate-300">Email Address</label>
+                  <label className={`text-[14px] font-semibold ${theme === "light" ? "text-gray-700" : "text-slate-300"}`}>Email Address</label>
                   <input
                     type="email"
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-xl text-gray-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-[15px]"
+                    className={`w-full px-4 py-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-[15px] ${
+                      theme === "light"
+                        ? "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400"
+                        : "bg-slate-800/60 border-slate-700/60 text-gray-100 placeholder-slate-500"
+                    }`}
                     required
                   />
                 </div>
 
                 <div className="space-y-2.5">
-                  <label className="text-[14px] font-semibold text-slate-300">Mobile Number</label>
+                  <label className={`text-[14px] font-semibold ${theme === "light" ? "text-gray-700" : "text-slate-300"}`}>Mobile Number</label>
                   <input
                     type="tel"
                     placeholder="+1 (555) 123-4567"
                     value={mobile}
                     onChange={(e) => setMobile(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-xl text-gray-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-[15px]"
+                    className={`w-full px-4 py-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-[15px] ${
+                      theme === "light"
+                        ? "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400"
+                        : "bg-slate-800/60 border-slate-700/60 text-gray-100 placeholder-slate-500"
+                    }`}
                     required
                   />
                 </div>
 
                 <div className="space-y-2.5">
-                  <label className="text-[14px] font-semibold text-slate-300">Password</label>
+                  <label className={`text-[14px] font-semibold ${theme === "light" ? "text-gray-700" : "text-slate-300"}`}>Password</label>
                   <input
                     type="password"
                     placeholder="Create a strong password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-xl text-gray-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-[15px]"
+                    className={`w-full px-4 py-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-[15px] ${
+                      theme === "light"
+                        ? "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400"
+                        : "bg-slate-800/60 border-slate-700/60 text-gray-100 placeholder-slate-500"
+                    }`}
                     required
                   />
                 </div>
@@ -143,21 +188,27 @@ export default function RegisterPage() {
 
             {/* Footer */}
             <div className="mt-10 text-center space-y-4">
-              <p className="text-[13px] text-slate-500">
+              <p className={`text-[13px] ${theme === "light" ? "text-gray-500" : "text-slate-500"}`}>
                 By creating an account, you agree to our{" "}
-                <a href="#" className="text-blue-400 hover:text-purple-400 underline underline-offset-2 transition-colors">
+                <a href="#" className={`underline underline-offset-2 transition-colors ${
+                  theme === "light" ? "text-blue-600 hover:text-purple-600" : "text-blue-400 hover:text-purple-400"
+                }`}>
                   Terms of Service
                 </a>{" "}
                 and{" "}
-                <a href="#" className="text-blue-400 hover:text-purple-400 underline underline-offset-2 transition-colors">
+                <a href="#" className={`underline underline-offset-2 transition-colors ${
+                  theme === "light" ? "text-blue-600 hover:text-purple-600" : "text-blue-400 hover:text-purple-400"
+                }`}>
                   Privacy Policy
                 </a>
               </p>
-              <p className="text-slate-300 text-[15px]">
+              <p className={`text-[15px] ${theme === "light" ? "text-gray-700" : "text-slate-300"}`}>
                 Already have an account?{" "}
-                <a href="/login" className="text-blue-400 hover:text-purple-400 underline underline-offset-2 font-semibold transition-colors">
+                <Link href="/login" className={`underline underline-offset-2 font-semibold transition-colors ${
+                  theme === "light" ? "text-blue-600 hover:text-purple-600" : "text-blue-400 hover:text-purple-400"
+                }`}>
                   Sign in
-                </a>
+                </Link>
               </p>
             </div>
           </div>

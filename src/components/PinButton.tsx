@@ -43,6 +43,13 @@ export default function PinButton({ title, figure, html, graph_type, onPinned }:
           onPinned();
         }, 100);
       }
+      
+      // Also trigger global refresh if available
+      if (typeof window !== "undefined" && (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs) {
+        setTimeout(() => {
+          (window as unknown as { refreshDashboardGraphs: () => void }).refreshDashboardGraphs();
+        }, 100);
+      }
     } catch (error) {
       console.error("Failed to pin graph:", error);
     } finally {
@@ -54,7 +61,7 @@ export default function PinButton({ title, figure, html, graph_type, onPinned }:
     <button 
       onClick={handlePin} 
       disabled={isPending}
-      className="inline-flex items-center gap-1.5 text-xs rounded-lg border border-primary/50 bg-primary/20 px-3 py-1.5 text-white font-medium hover:bg-primary/30 hover:border-primary/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed pressable shadow-sm"
+      className="inline-flex items-center gap-1.5 text-xs rounded-lg border border-primary/50 bg-primary/20 px-3 py-1.5 text-white font-medium hover:bg-primary/30 hover:border-primary/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed pressable shadow-sm dark:border-primary/50 dark:bg-primary/20 dark:text-white dark:hover:bg-primary/30 dark:hover:border-primary/60 light:border-blue-500/60 light:bg-blue-500/20 light:text-blue-700 light:hover:bg-blue-500/30 light:hover:border-blue-500/70"
       title="Pin to dashboard"
     >
       {isPending ? (
