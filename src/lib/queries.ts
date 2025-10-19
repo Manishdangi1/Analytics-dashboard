@@ -37,14 +37,6 @@ export async function listDashboardGraphs(params?: operations["list_dashboard_gr
 
 export async function registerDashboardGraph(payload: DashboardGraphRegistrationRequest) {
   const { data } = await api.post<DashboardGraphRegistrationResponse>("/dashboard/graphs", payload);
-  
-  // Trigger dashboard refresh after successful registration
-  if (typeof window !== "undefined" && (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs) {
-    setTimeout(() => {
-      (window as unknown as { refreshDashboardGraphs: () => void }).refreshDashboardGraphs();
-    }, 100);
-  }
-  
   return data;
 }
 
@@ -156,16 +148,56 @@ export async function getChat(transcriptId: string, chatId: string) {
 
 // Dashboard admin
 export async function unregisterDashboardGraph(graphIdentifier: string) {
-  const { data } = await api.delete<Record<string, unknown>>(`/dashboard/graphs/${encodeURIComponent(graphIdentifier)}`);
-  
-  // Trigger dashboard refresh after successful delete
-  if (typeof window !== "undefined" && (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs) {
-    setTimeout(() => {
-      (window as unknown as { refreshDashboardGraphs: () => void }).refreshDashboardGraphs();
-    }, 100);
+  try {
+    console.log('🗑️ Attempting to unpin graph:', graphIdentifier);
+    console.log('🔍 Graph ID type:', typeof graphIdentifier);
+    console.log('🔍 Graph ID length:', graphIdentifier?.length);
+    
+    // Validate graph identifier
+    if (!graphIdentifier || graphIdentifier.trim() === '') {
+      throw new Error('Invalid graph identifier: empty or undefined');
+    }
+    
+    // Try deactivation first (more reliable than delete)
+    console.log('🔄 Deactivating graph...');
+    const payload = {
+      graph_identifiers: [graphIdentifier.trim()],
+      active: false
+    };
+    console.log('📤 Deactivation payload:', payload);
+    
+    const { data } = await updateDashboardScope(payload);
+    console.log('✅ Graph deactivated successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Failed to deactivate graph:', error);
+    console.error('❌ Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      status: (error as any)?.response?.status,
+      statusText: (error as any)?.response?.statusText,
+      data: (error as any)?.response?.data
+    });
+    
+    // Try delete as fallback
+    try {
+      console.log('🔄 Trying delete as fallback...');
+      const deleteUrl = `/dashboard/graphs/${encodeURIComponent(graphIdentifier)}`;
+      console.log('🗑️ Delete URL:', deleteUrl);
+      
+      const { data } = await api.delete<Record<string, unknown>>(deleteUrl);
+      console.log('✅ Graph deleted successfully:', data);
+      return data;
+    } catch (deleteError) {
+      console.error('❌ Failed to delete graph:', deleteError);
+      console.error('❌ Delete error details:', {
+        message: deleteError instanceof Error ? deleteError.message : 'Unknown error',
+        status: (deleteError as any)?.response?.status,
+        statusText: (deleteError as any)?.response?.statusText,
+        data: (deleteError as any)?.response?.data
+      });
+      throw error; // Throw original error
+    }
   }
-  
-  return data;
 }
 
 export async function updateDashboardScope(payload: components["schemas"]["DashboardScopeUpdateRequest"]) {

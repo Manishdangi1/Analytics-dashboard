@@ -1,5 +1,5 @@
 "use client";
-import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, authMe, registerDashboardGraph } from "@/lib/queries";
+import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, authMe, registerDashboardGraph, unregisterDashboardGraph } from "@/lib/queries";
 import { extractTranscriptId } from "@/lib/ids";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryResultsPoll } from "@/hooks/useQueryResultsPoll";
@@ -11,6 +11,7 @@ import PinButton from "@/components/PinButton";
 import UnpinButton from "@/components/UnpinButton";
 import VoiceChat from "@/components/VoiceChat";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { components } from "@/types/api";
 import { getDashboardTranscriptId, setDashboardTranscriptId, clearDashboardTranscriptId } from "@/lib/dashboardSession";
@@ -294,8 +295,46 @@ export default function DashboardPage() {
       setIsFetching(false);
     }
   }
+
+  // Function to remove a specific graph from local state
+  const removeGraphFromState = (graphIdToRemove: string) => {
+    setGraphs(prevGraphs => {
+      console.log('🗑️ Removing graph from state:', graphIdToRemove);
+      console.log('📊 Current graphs before removal:', prevGraphs.length);
+      
+      // Use index-based filtering for more reliable removal
+      const filteredGraphs = prevGraphs.filter((graph, index) => {
+        const currentGraphId = graph.graph_id || `fallback-${index}`;
+        const shouldKeep = currentGraphId !== graphIdToRemove;
+        console.log(`🔍 Graph ${currentGraphId} (index ${index}) ${shouldKeep ? 'kept' : 'removed'}`);
+        return shouldKeep;
+      });
+      
+      console.log('📊 Graphs after removal:', filteredGraphs.length);
+      return filteredGraphs;
+    });
+  };
+
+  // Function to remove all graphs from local state
+  const removeAllGraphsFromState = () => {
+    console.log('🗑️ Removing all graphs from state');
+    setGraphs([]);
+  };
   useEffect(() => {
     loadGraphs();
+  }, []);
+
+  // Set up global refresh function for dashboard graphs
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs = loadGraphs;
+    }
+    
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs;
+      }
+    };
   }, []);
 
   async function onAsk(e: React.FormEvent) {
@@ -352,9 +391,11 @@ export default function DashboardPage() {
     
     // Helper function to normalize graph structure
     const normalizeGraph = (g: any) => {
+      let normalized;
+      
       // If it's the new API structure with payload
       if (g.type === "graph" && g.payload) {
-        return {
+        normalized = {
           ...g,
           graph_type: g.payload.graph_type,
           data: g.payload.data,
@@ -365,10 +406,9 @@ export default function DashboardPage() {
           figure: g.payload.figure
         };
       }
-      
       // If it's a summary_card, ensure it has the right structure
-      if (g.type === "summary_card" || g.graph_type === "summary_card") {
-        return {
+      else if (g.type === "summary_card" || g.graph_type === "summary_card") {
+        normalized = {
           ...g,
           graph_type: g.graph_type || "summary_card",
           data: g.data || [],
@@ -376,9 +416,34 @@ export default function DashboardPage() {
           insight: g.insight || g.summary?.description || ""
         };
       }
-      
       // If it already has the expected structure, return as is
-      return g;
+      else {
+        normalized = g;
+      }
+
+      // Handle employee data aggregation for charts
+      if (normalized.title?.toLowerCase().includes('employee') && 
+          normalized.data?.length > 0 && 
+          normalized.data[0]?.employee_name) {
+        console.log('🔄 Aggregating employee data for chart');
+        
+        // Group by department and count employees
+        const departmentCounts = normalized.data.reduce((acc: any, employee: any) => {
+          const dept = employee.department || 'Unknown';
+          acc[dept] = (acc[dept] || 0) + 1;
+          return acc;
+        }, {});
+
+        // Convert to chart format
+        normalized.data = Object.entries(departmentCounts).map(([department, count]) => ({
+          department,
+          value: count
+        }));
+
+        console.log('✅ Employee data aggregated:', normalized.data);
+      }
+
+      return normalized;
     };
 
     // Updated graph detection logic to handle the new API structure
@@ -614,10 +679,66 @@ export default function DashboardPage() {
                 </button>
               </div>
               
+              {/* Unpin All Button */}
+              {graphs.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      if (confirm(`Are you sure you want to remove all ${graphs.length} graphs from the dashboard?`)) {
+                        try {
+                          // Try to unpin all graphs via API
+                          const unpinPromises = graphs.map((graph, index) => {
+                            const graphId = graph.graph_id || `fallback-${index}`;
+                            if (graphId.startsWith('fallback-')) {
+                              return Promise.resolve(); // Skip API call for fallback IDs
+                            }
+                            return unregisterDashboardGraph(graphId).catch(error => {
+                              console.warn('Failed to unpin graph via API:', error);
+                              return Promise.resolve(); // Continue with other graphs
+                            });
+                          });
+                          
+                          await Promise.allSettled(unpinPromises);
+                          
+                          // Remove all graphs from local state
+                          removeAllGraphsFromState();
+                          showSuccess(`All ${graphs.length} graphs removed from dashboard!`);
+                        } catch (error) {
+                          console.error('Error unpinning all graphs:', error);
+                          // Still remove locally even if API fails
+                          removeAllGraphsFromState();
+                          showSuccess(`All ${graphs.length} graphs removed from dashboard!`);
+                        }
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all pressable hover-glow group ${
+                      theme === "light"
+                        ? "bg-slate-50 border border-slate-300 hover:bg-red-50 hover:border-red-300 text-slate-700 hover:text-red-700 shadow-sm"
+                        : "bg-slate-800/60 border border-slate-700/60 hover:bg-red-500/10 hover:border-red-500/30 text-slate-400 hover:text-red-400"
+                    }`}
+                    title="Remove all graphs from dashboard"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:scale-110 transition-transform">
+                      <path fillRule="evenodd" d="M8.5 2a1 1 0 000 2h3a1 1 0 100-2h-3zM4 5a2 2 0 012-2h8a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 3a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-medium">Clear All</span>
+                  </button>
+                  
+                  {/* Graph count indicator */}
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    theme === "light"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-blue-500/20 text-blue-400"
+                  }`}>
+                    {graphs.length} graph{graphs.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              )}
+              
               {/* Enhanced User Info and Actions */}
               <div className="flex items-center gap-3">
                 {/* Theme Toggle */}
-                {/* <ThemeToggle /> */}
+                <ThemeToggle />
                 
                 <div className={`flex items-center gap-2 px-3 py-2 rounded-lg hover-lift group ${
                   theme === "light" 
@@ -677,18 +798,6 @@ export default function DashboardPage() {
                 }`}>
                   <span className={theme === "light" ? "text-blue-700 font-bold" : "text-blue-400 font-semibold"}>{gridCols}</span> {gridCols === 1 ? 'Column' : 'Columns'}
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-              <button
-                  onClick={loadGraphs}
-                disabled={isFetching}
-                  className="flex items-center gap-2 px-4 py-2 text-sm indus-card rounded-lg hover:bg-white/10 transition-all pressable hover-glow disabled:opacity-50 group"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 group-hover:rotate-180 transition-transform ${isFetching ? 'animate-spin' : ''}`}>
-                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                </svg>
-                  <span className="group-hover:translate-x-0.5 transition-transform">Refresh</span>
-              </button>
               </div>
             </div>
             
@@ -877,41 +986,49 @@ export default function DashboardPage() {
                     </div>
                   </>
                 )}
-                {graphs.map((graph, index) => (
-                  <div key={graph.graph_id || index} className="indus-card hover:bg-white/10 transition-all duration-300 group hover-lift animated-bg h-[600px] flex flex-col" style={{ animationDelay: `${index * 0.1}s` }}>
-                    {/* Header - Fixed height */}
-                    <div className="flex-shrink-0 p-6 pb-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-400 group-hover:rotate-12 transition-transform">
-                              <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                            </svg>
+                {graphs.map((graph, index) => {
+                  // Generate a fallback ID if graph_id is missing
+                  const graphId = graph.graph_id || `fallback-${index}`;
+                  
+                  return (
+                    <div key={graphId} className="indus-card hover:bg-white/10 transition-all duration-300 group hover-lift animated-bg h-[600px] flex flex-col" style={{ animationDelay: `${index * 0.1}s` }}>
+                      {/* Header - Fixed height */}
+                      <div className="flex-shrink-0 p-6 pb-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-400 group-hover:rotate-12 transition-transform">
+                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                              </svg>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-gray-100 group-hover:text-blue-400 transition-colors truncate">
+                                {graph.title || `Chart ${index + 1}`}
+                              </h3>
+                              <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors truncate">
+                                {(graph as any).graph_type || 'Visualization'}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-gray-100 group-hover:text-blue-400 transition-colors truncate">
-                              {graph.title || `Chart ${index + 1}`}
-                            </h3>
-                            <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors truncate">
-                              {(graph as any).graph_type || 'Visualization'}
-                            </p>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <UnpinButton
+                              graphId={graphId}
+                              onUnpinned={() => {
+                                showSuccess("Graph removed from dashboard!");
+                                removeGraphFromState(graphId);
+                              }}
+                            />
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <UnpinButton
-                            graphId={graph.graph_id || ''}
-                            onUnpinned={() => {
-                              showSuccess("Graph removed from dashboard!");
-                              loadGraphs();
-                            }}
-                          />
                         </div>
                       </div>
-                    </div>
                     
                     {/* Content Area - Flexible height */}
                     <div className="flex-1 px-6 pb-4">
-                      <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                      <div className={`h-full rounded-lg flex items-center justify-center overflow-hidden ${
+                        theme === "light" 
+                          ? "bg-white/80 border border-slate-200 shadow-sm" 
+                          : "bg-white/5 border border-white/10"
+                      }`}>
                         {/* Try enhanced chart renderer first - it can handle figure, data, and other formats */}
                           <div className="w-full h-full p-4">
                             <ChartRenderer 
@@ -928,13 +1045,16 @@ export default function DashboardPage() {
                     {/* Footer - Fixed height */}
                     <div className="flex-shrink-0 px-6 pb-6">
                       {graph.description && (
-                        <p className="text-sm text-neutral-400 line-clamp-2 leading-relaxed">
+                        <p className={`text-sm line-clamp-2 leading-relaxed ${
+                          theme === "light" ? "text-slate-600" : "text-neutral-400"
+                        }`}>
                           {graph.description}
                         </p>
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1179,7 +1299,7 @@ export default function DashboardPage() {
                                 </div>
                                 <button
                                   onClick={async (event) => {
-                                    console.log('🔗 Copying chart to dashboard...');
+                                    console.log('📌 Pinning chart to dashboard...');
                                     try {
                                       // Create a new graph item with the chart data directly
                                       const newGraph: any = {
@@ -1192,20 +1312,20 @@ export default function DashboardPage() {
                                       
                                       setGraphs((prev: any) => [...prev, newGraph]);
                                       console.log('✅ Chart added to dashboard:', newGraph);
-                                      showSuccess("Chart copied to dashboard!");
+                                      showSuccess("Chart pinned to dashboard!");
                                     } catch (error) {
-                                      console.error('❌ Failed to copy chart:', error);
-                                      showSuccess("Failed to copy chart. Please try again.");
+                                      console.error('❌ Failed to pin chart:', error);
+                                      showSuccess("Failed to pin chart. Please try again.");
                                     }
                                   }}
                                   className="inline-flex items-center gap-1.5 text-xs rounded-lg border border-primary/50 bg-primary/20 px-3 py-1.5 text-white font-medium hover:bg-primary/30 hover:border-primary/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed pressable shadow-sm"
-                                  title="Copy chart to dashboard"
+                                  title="Pin chart to dashboard"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
                                     <path fillRule="evenodd" d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" clipRule="evenodd" />
                                     <path fillRule="evenodd" d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" clipRule="evenodd" />
                                   </svg>
-                                  <span>Copy to Dashboard</span>
+                                  <span>Pin to Dashboard</span>
                                 </button>
                               </div>
                               
@@ -1220,26 +1340,14 @@ export default function DashboardPage() {
                                 ) : (
                                   /* Use enhanced chart renderer for other graphs */
                                   <div className="w-full h-[300px] min-h-[300px]">
-                                    {(() => {
-                                      const chartData = (graph as any).data || [];
-                                      console.log('🔍 Dashboard passing data to ChartRenderer:', {
-                                        graph,
-                                        chartData,
-                                        dataType: typeof chartData,
-                                        isArray: Array.isArray(chartData),
-                                        dataLength: chartData?.length,
-                                        firstItem: chartData?.[0]
-                                      });
-                                      return (
-                                        <ChartRenderer 
-                                          data={chartData} 
-                                          type={(graph as any).graph_type || 'bar'} 
-                                          title={(graph as any).title || undefined}
-                                          graph_type={(graph as any).graph_type}
-                                          className="w-full h-full"
-                                        />
-                                      );
-                                    })()}
+                                    <ChartRenderer 
+                                      data={(graph as any).data || []} 
+                                      type={(graph as any).graph_type || 'bar'} 
+                                      title={(graph as any).title || undefined}
+                                      graph_type={(graph as any).graph_type}
+                                      insight={(graph as any).insight}
+                                      className="w-full h-full"
+                                    />
                                   </div>
                                 )}
                               </div>

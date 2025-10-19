@@ -43,13 +43,6 @@ export default function PinButton({ title, figure, html, graph_type, onPinned }:
           onPinned();
         }, 100);
       }
-      
-      // Also trigger global refresh if available
-      if (typeof window !== "undefined" && (window as unknown as { refreshDashboardGraphs?: () => void }).refreshDashboardGraphs) {
-        setTimeout(() => {
-          (window as unknown as { refreshDashboardGraphs: () => void }).refreshDashboardGraphs();
-        }, 100);
-      }
     } catch (error) {
       console.error("Failed to pin graph:", error);
     } finally {
