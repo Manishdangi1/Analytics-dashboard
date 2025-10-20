@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { setAccessToken } from "@/lib/auth";
 import { useTheme } from "@/contexts/ThemeContext";
 import ThemeToggle from "@/components/ThemeToggle";
+import Logo from "@/components/Logo";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -67,18 +68,16 @@ export default function LoginPage() {
       }`} style={{ animationDelay: '1s' }} />
       
       <div className="h-full w-full flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <div className={`p-10 rounded-3xl backdrop-blur-xl shadow-2xl glass-fade-in fade-in-up ${
+        <div className="w-full max-w-lg">
+          <div className={`p-12 rounded-3xl backdrop-blur-2xl shadow-2xl glass-fade-in fade-in-up glass-ultra ${
             theme === "light"
-              ? "bg-white/90 border border-gray-200"
-              : "bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50"
+              ? "bg-white/95 border border-gray-200/60"
+              : "bg-gradient-to-br from-slate-800/70 to-slate-900/70 border border-slate-700/60"
           }`}>
             {/* Header */}
             <div className="text-center mb-10">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center mx-auto mb-5 shadow-xl shadow-blue-500/30">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-white">
-                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-                </svg>
+              <div className="mb-8">
+                <Logo size="xxl" className="mx-auto" />
               </div>
               <h1 className={`text-4xl font-extrabold tracking-tight mb-3 ${
                 theme === "light"

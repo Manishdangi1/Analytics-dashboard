@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clearAccessToken, getAccessToken } from "@/lib/auth";
+import Logo from "@/components/Logo";
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
@@ -45,7 +46,9 @@ export default function TopNav() {
   return (
     <div className="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/5 border-b border-white/10 dark:bg-white/5 dark:border-white/10 light:bg-white/80 light:border-gray-200/60">
       <div className="w-full px-4 h-14 flex items-center justify-between">
-        <Link href="/dashboard" className="font-semibold dark:text-white light:text-gray-800">Indus</Link>
+        <Link href="/dashboard" aria-label="Indus Dashboard" className="flex items-center">
+          <Logo size="lg" />
+        </Link>
         <nav className="flex items-center gap-4 text-sm">
           {links.map((l) => (
             <Link

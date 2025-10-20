@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
+import Logo from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
 
 // Particle System
@@ -95,18 +96,23 @@ export default function Home() {
             </span>
           </div>
           
+          {/* Logo */}
+          <div className="fade-in-up stagger-2">
+            <Logo size="xl" className="mx-auto mb-8" />
+          </div>
+          
           {/* Modern main heading */}
           <div className="space-y-5">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold leading-tight fade-in-up stagger-2">
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold leading-tight fade-in-up stagger-3">
               <span className={`bg-gradient-to-r bg-clip-text text-transparent ${
                 theme === 'light' 
                   ? 'from-gray-900 via-blue-700 to-purple-700 drop-shadow-sm' 
                   : 'from-gray-100 via-blue-200 to-purple-200'
               }`}>
-                Indus Analytics
+                Analytics Platform
               </span>
             </h1>
-            <div className="fade-in-up stagger-3">
+            <div className="fade-in-up stagger-4">
               <div className={`w-32 h-1 bg-gradient-to-r mx-auto rounded-full ${
                 theme === 'light'
                   ? 'from-blue-500 via-purple-500 to-blue-500 shadow-md shadow-blue-500/20'
@@ -116,7 +122,7 @@ export default function Home() {
           </div>
           
           {/* Modern description */}
-          <div className="fade-in-up stagger-4">
+          <div className="fade-in-up stagger-5">
             <p className={`mx-auto max-w-3xl text-base md:text-lg lg:text-xl leading-relaxed ${
               theme === 'light' 
                 ? 'text-gray-700 font-medium' 
@@ -133,7 +139,7 @@ export default function Home() {
           </div>
           
           {/* Modern CTA buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-5 pt-6 fade-in-up stagger-5">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-5 pt-6 fade-in-up stagger-6">
             <Link
               href="/login"
               className={`pressable inline-flex items-center gap-3 rounded-2xl px-10 py-4 text-lg font-semibold text-white transition-all duration-300 hover:scale-105 group ${

@@ -65,20 +65,7 @@ export default function UnpinButton({ graphId, onUnpinned }: { graphId: string; 
       onClick={handleUnpin}
       disabled={isPending}
       title="Unpin from dashboard"
-      className="inline-flex items-center gap-1 rounded-md border border-red-400/30 bg-red-500/10 px-2 py-1 text-xs text-red-300 hover:bg-red-500/15 hover:text-red-200 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed pressable"
-      style={{
-        borderColor: 'var(--error)',
-        backgroundColor: 'rgba(255, 68, 68, 0.1)',
-        color: 'var(--error)'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.15)';
-        e.currentTarget.style.borderColor = 'var(--error)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.1)';
-        e.currentTarget.style.borderColor = 'var(--error)';
-      }}
+      className="inline-flex items-center gap-1 rounded-md border border-slate-400/30 bg-slate-500/10 px-2 py-1 text-xs text-slate-300 hover:bg-red-500/15 hover:text-red-200 hover:border-red-400/30 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed pressable"
     >
       {isPending ? (
         <span>Unpinning…</span>

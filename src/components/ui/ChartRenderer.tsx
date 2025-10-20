@@ -99,6 +99,49 @@ export default function ChartRenderer({ data, type, title, className = "", graph
 
   const themeColors = getThemeColors();
 
+  // Smart formatter that only adds currency symbols for appropriate fields
+  const formatValue = (value: any, name?: string | number) => {
+    if (typeof value !== 'number') return value;
+    
+    // Fields that should have currency formatting (excluding generic 'value' for employee/inventory data)
+    const currencyFields = ['amount', 'price', 'cost', 'revenue', 'salary', 'wage', 'income', 'total', 'sum'];
+    const nameStr = typeof name === 'string' ? name : String(name || '');
+    const isCurrencyField = nameStr && currencyFields.some(field => 
+      nameStr.toLowerCase().includes(field)
+    );
+    
+    // Check if this is employee data (should not have currency formatting)
+    const isEmployeeData = data && data.some((item: any) => 
+      item.department || item.employee_name || item.employee_id
+    );
+    
+    // Check if this is inventory data (should not have currency formatting)
+    const isInventoryData = data && data.some((item: any) => 
+      item.product_name || item.item_name || item.inventory_id || item.stock_id ||
+      Object.keys(item).some(key => 
+        ['inventory', 'stock', 'quantity', 'count', 'units', 'qty', 'available', 'remaining'].some(field => 
+          key.toLowerCase().includes(field)
+        )
+      )
+    );
+    
+    // Check if the data contains actual currency-related fields (excluding employee and inventory data)
+    const hasCurrencyData = !isEmployeeData && !isInventoryData && data && data.some((item: any) => 
+      Object.keys(item).some(key => 
+        currencyFields.some(field => key.toLowerCase().includes(field)) ||
+        (key.toLowerCase().includes('value') && 
+         (item[key] > 1000 || // Likely currency if large numbers
+          Object.keys(item).some(k => k.toLowerCase().includes('amount') || k.toLowerCase().includes('price'))))
+      )
+    );
+    
+    if (isCurrencyField || hasCurrencyData) {
+      return `₹${value.toLocaleString()}`;
+    }
+    
+    return value.toLocaleString();
+  };
+
   // Universal data transformation function
   const transformDataForChart = (data: any[]): { data: any[]; xAxisKey: string; yAxisKey: string } => {
     if (!data || data.length === 0) {
@@ -130,11 +173,10 @@ export default function ChartRenderer({ data, type, title, className = "", graph
     // Find the best X-axis key
     let xAxisKey = xAxisKeys.find(key => firstItem.hasOwnProperty(key));
     if (!xAxisKey) {
-      // Fallback: find any non-numeric key
+      // Fallback: find any non-numeric key, but exclude small numbers that might be counts/IDs
       xAxisKey = allKeys.find(key => 
-        typeof firstItem[key] === 'string' || 
-        typeof firstItem[key] === 'object' ||
-        (typeof firstItem[key] === 'number' && firstItem[key] < 1000) // Likely categorical
+        (typeof firstItem[key] === 'string' || typeof firstItem[key] === 'object') ||
+        (typeof firstItem[key] === 'number' && firstItem[key] > 1000) // Only large numbers for categorical
       ) || 'name';
     }
     
@@ -243,7 +285,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                 tick={{ fill: themeColors.text, fontSize: 12, fontWeight: 600 }}
                 axisLine={{ stroke: themeColors.grid, strokeWidth: 2 }}
                 tickLine={{ stroke: themeColors.grid }}
-                tickFormatter={(value) => `₹${value.toLocaleString()}`}
+                tickFormatter={(value) => formatValue(value)}
               />
               <Tooltip 
                 contentStyle={{ 
@@ -259,7 +301,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                   backdropFilter: 'blur(10px)'
                 }}
                 animationDuration={800}
-                formatter={(value, name) => [`₹${Number(value).toLocaleString()}`, name]}
+                formatter={(value, name) => [formatValue(Number(value), name), name]}
                 cursor={{ fill: themeColors.colors[0], fillOpacity: 0.1 }}
               />
               <Legend 
@@ -311,7 +353,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                 tick={{ fill: themeColors.text, fontSize: 12, fontWeight: 600 }}
                 axisLine={{ stroke: themeColors.grid, strokeWidth: 2 }}
                 tickLine={{ stroke: themeColors.grid }}
-                tickFormatter={(value) => `₹${value.toLocaleString()}`}
+                tickFormatter={(value) => formatValue(value)}
               />
               <Tooltip 
                 contentStyle={{ 
@@ -327,7 +369,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                   backdropFilter: 'blur(10px)'
                 }}
                 animationDuration={800}
-                formatter={(value, name) => [`₹${Number(value).toLocaleString()}`, name]}
+                formatter={(value, name) => [formatValue(Number(value), name), name]}
                 cursor={{ stroke: themeColors.colors[0], strokeWidth: 2, strokeDasharray: '5 5' }}
               />
               <Legend 
@@ -394,7 +436,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                 label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                 outerRadius={120}
                 innerRadius={chartType.toLowerCase().includes('donut') ? 50 : 0}
-                fill="#8884d8"
+                fill={themeColors.colors[0]}
                 dataKey={yAxisKey}
                 animationBegin={0}
                 animationDuration={1000}
@@ -431,7 +473,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                   backdropFilter: 'blur(10px)'
                 }}
                 animationDuration={800}
-                formatter={(value, name) => [`₹${Number(value).toLocaleString()}`, name]}
+                formatter={(value, name) => [formatValue(Number(value), name), name]}
               />
               <Legend 
                 verticalAlign="bottom" 
@@ -476,7 +518,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                 tick={{ fill: themeColors.text, fontSize: 12, fontWeight: 600 }}
                 axisLine={{ stroke: themeColors.grid, strokeWidth: 2 }}
                 tickLine={{ stroke: themeColors.grid }}
-                tickFormatter={(value) => `₹${value.toLocaleString()}`}
+                tickFormatter={(value) => formatValue(value)}
               />
               <Tooltip 
                 contentStyle={{ 
@@ -492,7 +534,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                   backdropFilter: 'blur(10px)'
                 }}
                 animationDuration={800}
-                formatter={(value, name) => [`₹${Number(value).toLocaleString()}`, name]}
+                formatter={(value, name) => [formatValue(Number(value), name), name]}
                 cursor={{ stroke: themeColors.colors[0], strokeWidth: 2, strokeDasharray: '5 5' }}
               />
               <Legend 
@@ -535,31 +577,23 @@ export default function ChartRenderer({ data, type, title, className = "", graph
 
       case 'summary_card':
       case 'summary':
-        // For summary cards, show a beautiful animated single value or bar chart
-        if (data.length === 1) {
-          const value = data[0][yAxisKey];
-          const label = data[0][xAxisKey];
-          return (
-            <div className="flex flex-col items-center justify-center h-full p-8 animate-fade-in">
-              <div className="relative">
-                <div className="text-8xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent mb-4">
-                  {typeof value === 'number' ? `₹${value.toLocaleString()}` : value}
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"></div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full"></div>
-              </div>
-              <div className="text-2xl text-gray-300 capitalize font-medium">
-                {label || 'Value'}
-              </div>
-              <div className="mt-4 w-32 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"></div>
-            </div>
-          );
-        } else {
-          // For multiple data points, use an animated bar chart
-          console.log('📊 Rendering Summary Card as Animated BarChart with:', { data, xAxisKey, yAxisKey, themeColors });
+        // Check if this should be a proper chart instead of summary card
+        const isRevenueData = title?.toLowerCase().includes('revenue') || 
+                             title?.toLowerCase().includes('sales') ||
+                             data.some((item: any) => 
+                               Object.keys(item).some(key => 
+                                 ['month', 'date', 'period', 'year', 'quarter'].some(period => 
+                                   key.toLowerCase().includes(period)
+                                 )
+                               )
+                             );
+        
+        // If it's revenue data with multiple data points, always render as a proper chart
+        if (isRevenueData && data.length > 1) {
+          console.log('📊 Rendering Revenue Data as Line Chart with:', { data, xAxisKey, yAxisKey, title });
           return (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <LineChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} opacity={0.2} />
                 <XAxis 
                   dataKey={xAxisKey} 
@@ -571,7 +605,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                   tick={{ fill: themeColors.text, fontSize: 12, fontWeight: 600 }}
                   axisLine={{ stroke: themeColors.grid, strokeWidth: 2 }}
                   tickLine={{ stroke: themeColors.grid }}
-                  tickFormatter={(value) => `₹${value.toLocaleString()}`}
+                  tickFormatter={(value) => formatValue(value)}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -587,7 +621,122 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                     backdropFilter: 'blur(10px)'
                   }}
                   animationDuration={800}
-                  formatter={(value, name) => [`₹${Number(value).toLocaleString()}`, name]}
+                  formatter={(value, name) => [formatValue(Number(value), name), name]}
+                  cursor={{ stroke: themeColors.colors[0], strokeWidth: 2, strokeDasharray: '5 5' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey={yAxisKey} 
+                  stroke={themeColors.colors[0]} 
+                  strokeWidth={3}
+                  dot={{ fill: themeColors.colors[0], strokeWidth: 2, r: 6 }}
+                  activeDot={{ r: 8, stroke: themeColors.colors[0], strokeWidth: 2, fill: themeColors.colors[1] }}
+                  animationDuration={1000}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          );
+        }
+        
+        // For summary cards, show a beautiful animated single value or bar chart
+        if (data.length === 1) {
+          const value = data[0][yAxisKey];
+          const label = data[0][xAxisKey];
+          
+          // For revenue data, show more context
+          const isRevenueData = title?.toLowerCase().includes('revenue') || 
+                               title?.toLowerCase().includes('sales');
+          
+          // If it's revenue data with only one point, show it as a simple summary
+          if (isRevenueData) {
+            // For revenue data, only show the main revenue value, ignore other fields
+            const revenueValue = data[0][yAxisKey] || data[0]['revenue'] || data[0]['amount'] || data[0]['value'] || value;
+            const revenueLabel = data[0][xAxisKey] || 'Revenue';
+            
+            // Find the count field (like "8") to show as months
+            const countField = Object.keys(data[0]).find(key => 
+              typeof data[0][key] === 'number' && 
+              data[0][key] > 0 && 
+              data[0][key] < 100 && 
+              !['revenue', 'amount', 'value', 'total', 'sum'].some(rev => key.toLowerCase().includes(rev))
+            );
+            const monthCount = countField ? data[0][countField] : null;
+            
+            return (
+              <div className="flex flex-col items-center justify-center h-full p-8 animate-fade-in">
+                <div className="text-8xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent mb-4">
+                  {typeof revenueValue === 'number' ? formatValue(revenueValue) : revenueValue}
+                </div>
+                
+                <div className="text-center space-y-2">
+                  <div className="text-2xl text-gray-300 capitalize font-medium">
+                    {revenueLabel}
+                  </div>
+                  {monthCount && (
+                    <div className="text-lg text-gray-400">
+                      {monthCount} months
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-4 w-32 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"></div>
+              </div>
+            );
+          }
+          
+          return (
+            <div className="flex flex-col items-center justify-center h-full p-8 animate-fade-in">
+              <div className="text-8xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent mb-4">
+                {typeof value === 'number' ? formatValue(value) : value}
+              </div>
+              
+              <div className="text-2xl text-gray-300 capitalize font-medium">
+                {label || 'Value'}
+              </div>
+              
+              <div className="mt-4 w-32 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"></div>
+            </div>
+          );
+        } else {
+          // For multiple data points, use an animated bar chart
+          console.log('📊 Rendering Summary Card as Animated BarChart with:', { data, xAxisKey, yAxisKey, themeColors });
+          
+          // For revenue data with multiple points, show a proper bar chart
+          const isRevenueData = title?.toLowerCase().includes('revenue') || 
+                               title?.toLowerCase().includes('sales');
+          
+          if (isRevenueData) {
+            return (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} opacity={0.2} />
+                <XAxis 
+                  dataKey={xAxisKey} 
+                  tick={{ fill: themeColors.text, fontSize: 12, fontWeight: 600 }}
+                  axisLine={{ stroke: themeColors.grid, strokeWidth: 2 }}
+                  tickLine={{ stroke: themeColors.grid }}
+                />
+                <YAxis 
+                  tick={{ fill: themeColors.text, fontSize: 12, fontWeight: 600 }}
+                  axisLine={{ stroke: themeColors.grid, strokeWidth: 2 }}
+                  tickLine={{ stroke: themeColors.grid }}
+                  tickFormatter={(value) => formatValue(value)}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: theme === 'dark' ? 'rgba(15, 15, 15, 0.95)' : 'rgba(255, 255, 255, 0.95)', 
+                    border: `2px solid ${themeColors.colors[0]}`,
+                    color: themeColors.text,
+                    borderRadius: '16px',
+                    boxShadow: theme === 'dark' 
+                      ? '0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(96, 165, 250, 0.3)' 
+                      : '0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(37, 99, 235, 0.3)',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                  animationDuration={800}
+                  formatter={(value, name) => [formatValue(Number(value), name), name]}
                   cursor={{ fill: themeColors.colors[0], fillOpacity: 0.1 }}
                 />
                 <Legend 
@@ -605,10 +754,52 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                   animationBegin={0}
                   animationDuration={1200}
                   animationEasing="ease-out"
-                  stroke={themeColors.colors[0]}
-                  strokeWidth={2}
-                  style={{
-                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
+                />
+              </BarChart>
+            </ResponsiveContainer>
+            );
+          }
+          
+          // Default bar chart for other data
+          return (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} opacity={0.2} />
+                <XAxis 
+                  dataKey={xAxisKey} 
+                  tick={{ fill: themeColors.text, fontSize: 12, fontWeight: 600 }}
+                  axisLine={{ stroke: themeColors.grid, strokeWidth: 2 }}
+                  tickLine={{ stroke: themeColors.grid }}
+                />
+                <YAxis 
+                  tick={{ fill: themeColors.text, fontSize: 12, fontWeight: 600 }}
+                  axisLine={{ stroke: themeColors.grid, strokeWidth: 2 }}
+                  tickLine={{ stroke: themeColors.grid }}
+                  tickFormatter={(value) => formatValue(value)}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: theme === 'dark' ? 'rgba(15, 15, 15, 0.95)' : 'rgba(255, 255, 255, 0.95)', 
+                    border: `2px solid ${themeColors.colors[0]}`,
+                    color: themeColors.text,
+                    borderRadius: '16px',
+                    boxShadow: theme === 'dark' 
+                      ? '0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(96, 165, 250, 0.3)' 
+                      : '0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(37, 99, 235, 0.3)',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                  animationDuration={800}
+                  formatter={(value, name) => [formatValue(Number(value), name), name]}
+                  cursor={{ fill: themeColors.colors[0], fillOpacity: 0.1 }}
+                />
+                <Legend 
+                  wrapperStyle={{ 
+                    fontSize: '12px', 
+                    fontWeight: '600',
+                    color: themeColors.text,
+                    paddingTop: '10px'
                   }}
                 />
                 <defs>
@@ -618,6 +809,14 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                     <stop offset="100%" stopColor={themeColors.colors[2] || themeColors.colors[0]} stopOpacity={0.7}/>
                   </linearGradient>
                 </defs>
+                <Bar 
+                  dataKey={yAxisKey} 
+                  fill={`url(#gradient-${yAxisKey})`} 
+                  radius={[12, 12, 0, 0]}
+                  animationBegin={0}
+                  animationDuration={1200}
+                  animationEasing="ease-out"
+                />
               </BarChart>
             </ResponsiveContainer>
           );

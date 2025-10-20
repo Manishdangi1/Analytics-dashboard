@@ -721,17 +721,9 @@ export default function DashboardPage() {
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:scale-110 transition-transform">
                       <path fillRule="evenodd" d="M8.5 2a1 1 0 000 2h3a1 1 0 100-2h-3zM4 5a2 2 0 012-2h8a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 3a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-sm font-medium">Clear All</span>
+                    <span className="text-sm font-medium">Unpin All</span>
                   </button>
                   
-                  {/* Graph count indicator */}
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    theme === "light"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-blue-500/20 text-blue-400"
-                  }`}>
-                    {graphs.length} graph{graphs.length !== 1 ? 's' : ''}
-                  </div>
                 </div>
               )}
               
@@ -791,13 +783,6 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <h2 className={`text-xl font-semibold ${theme === "light" ? "text-slate-900" : "text-gray-100"}`}>Visualizations</h2>
                 <div className="w-8 h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
-                <span className={`text-xs px-3 py-1.5 rounded-full border ${
-                  theme === "light"
-                    ? "text-slate-700 bg-slate-50 border-slate-300 shadow-sm font-medium"
-                    : "text-slate-400 bg-slate-800/60 border-slate-700/50"
-                }`}>
-                  <span className={theme === "light" ? "text-blue-700 font-bold" : "text-blue-400 font-semibold"}>{gridCols}</span> {gridCols === 1 ? 'Column' : 'Columns'}
-                </span>
               </div>
             </div>
             
@@ -918,74 +903,6 @@ export default function DashboardPage() {
                   gridTemplateColumns: getGridColumns()
                 }}
               >
-                {/* Debug: Show test cards when no graphs */}
-                {graphs.length === 0 && (
-                  <>
-                    <div className="indus-card h-[600px] flex flex-col bg-primary/10 border border-primary/20">
-                      <div className="flex-shrink-0 p-6 pb-4">
-                        <h3 className="text-white font-semibold mb-2">Test Card 1</h3>
-                        <p className="text-neutral-400 text-sm">This is a test card to verify grid layout</p>
-                      </div>
-                      <div className="flex-1 px-6 pb-4">
-                        <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                          <div className="text-center text-neutral-400">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-primary">
-                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                              </svg>
-                            </div>
-                            <p className="text-sm font-medium">Sample Chart</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0 px-6 pb-6">
-                        <p className="text-xs text-neutral-500">Test content for layout verification</p>
-                      </div>
-                    </div>
-                    <div className="indus-card h-[600px] flex flex-col bg-accent/10 border border-accent/20">
-                      <div className="flex-shrink-0 p-6 pb-4">
-                        <h3 className="text-white font-semibold mb-2">Test Card 2</h3>
-                        <p className="text-neutral-400 text-sm">Grid should change when you click buttons</p>
-                      </div>
-                      <div className="flex-1 px-6 pb-4">
-                        <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                          <div className="text-center text-neutral-400">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-accent/20 to-primary/20 flex items-center justify-center mx-auto mb-4">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-accent">
-                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                              </svg>
-                            </div>
-                            <p className="text-sm font-medium">Sample Chart</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0 px-6 pb-6">
-                        <p className="text-xs text-neutral-500">Test content for layout verification</p>
-                      </div>
-                    </div>
-                    <div className="indus-card h-[600px] flex flex-col bg-success/10 border border-success/20">
-                      <div className="flex-shrink-0 p-6 pb-4">
-                        <h3 className="text-white font-semibold mb-2">Test Card 3</h3>
-                        <p className="text-neutral-400 text-sm">Current layout: {getGridColumns()}</p>
-                      </div>
-                      <div className="flex-1 px-6 pb-4">
-                        <div className="h-full rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                          <div className="text-center text-neutral-400">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-success/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-success">
-                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                              </svg>
-                            </div>
-                            <p className="text-sm font-medium">Sample Chart</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0 px-6 pb-6">
-                        <p className="text-xs text-neutral-500">Test content for layout verification</p>
-                      </div>
-                    </div>
-                  </>
-                )}
                 {graphs.map((graph, index) => {
                   // Generate a fallback ID if graph_id is missing
                   const graphId = graph.graph_id || `fallback-${index}`;
