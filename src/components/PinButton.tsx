@@ -19,7 +19,6 @@ export default function PinButton({ title, figure, html, graph_type, onPinned }:
       );
 
       if (graphExists) {
-        console.log("Graph already exists on dashboard, skipping pin");
         if (onPinned) {
           onPinned();
         }
@@ -35,7 +34,6 @@ export default function PinButton({ title, figure, html, graph_type, onPinned }:
         active: true,
       });
       
-      console.log("Graph pinned successfully with ID:", uniqueGraphId);
       
       if (onPinned) {
         // Add a small delay to ensure the API has processed the new graph

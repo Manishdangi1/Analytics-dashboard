@@ -10,8 +10,6 @@ const livekitApi = axios.create({
 // Add LiveKit agent authentication
 livekitApi.interceptors.request.use((config) => {
   const livekitApiKey = process.env.NEXT_PUBLIC_LIVEKIT_AGENT_API_KEY;
-  console.log('🔑 LiveKit API Key present:', !!livekitApiKey);
-  console.log('🔑 LiveKit API Key length:', livekitApiKey?.length || 0);
   if (livekitApiKey) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${livekitApiKey}`;
@@ -149,9 +147,6 @@ export async function getChat(transcriptId: string, chatId: string) {
 // Dashboard admin
 export async function unregisterDashboardGraph(graphIdentifier: string) {
   try {
-    console.log('🗑️ Attempting to unpin graph:', graphIdentifier);
-    console.log('🔍 Graph ID type:', typeof graphIdentifier);
-    console.log('🔍 Graph ID length:', graphIdentifier?.length);
     
     // Validate graph identifier
     if (!graphIdentifier || graphIdentifier.trim() === '') {
@@ -159,15 +154,12 @@ export async function unregisterDashboardGraph(graphIdentifier: string) {
     }
     
     // Try deactivation first (more reliable than delete)
-    console.log('🔄 Deactivating graph...');
     const payload = {
       graph_identifiers: [graphIdentifier.trim()],
       active: false
     };
-    console.log('📤 Deactivation payload:', payload);
     
     const { data } = await updateDashboardScope(payload);
-    console.log('✅ Graph deactivated successfully:', data);
     return data;
   } catch (error) {
     console.error('❌ Failed to deactivate graph:', error);
@@ -180,12 +172,9 @@ export async function unregisterDashboardGraph(graphIdentifier: string) {
     
     // Try delete as fallback
     try {
-      console.log('🔄 Trying delete as fallback...');
       const deleteUrl = `/dashboard/graphs/${encodeURIComponent(graphIdentifier)}`;
-      console.log('🗑️ Delete URL:', deleteUrl);
       
       const { data } = await api.delete<Record<string, unknown>>(deleteUrl);
-      console.log('✅ Graph deleted successfully:', data);
       return data;
     } catch (deleteError) {
       console.error('❌ Failed to delete graph:', deleteError);
@@ -203,6 +192,29 @@ export async function unregisterDashboardGraph(graphIdentifier: string) {
 export async function updateDashboardScope(payload: components["schemas"]["DashboardScopeUpdateRequest"]) {
   const { data } = await api.post<components["schemas"]["DashboardScopeUpdateResponse"]>("/dashboard/graphs/scope", payload);
   return data;
+}
+
+// Direct delete function for dashboard graphs
+export async function deleteDashboardGraph(graphIdentifier: string) {
+  try {
+    // Validate graph identifier
+    if (!graphIdentifier || graphIdentifier.trim() === '') {
+      throw new Error('Invalid graph identifier: empty or undefined');
+    }
+    
+    const deleteUrl = `/dashboard/graphs/${encodeURIComponent(graphIdentifier.trim())}`;
+    const { data } = await api.delete<Record<string, unknown>>(deleteUrl);
+    return data;
+  } catch (error) {
+    console.error('❌ Failed to delete graph:', error);
+    console.error('❌ Delete error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      status: (error as any)?.response?.status,
+      statusText: (error as any)?.response?.statusText,
+      data: (error as any)?.response?.data
+    });
+    throw error;
+  }
 }
 
 export async function putDashboard(payload: components["schemas"]["DashboardGraphsPayload"]) {

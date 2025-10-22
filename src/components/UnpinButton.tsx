@@ -9,11 +9,9 @@ export default function UnpinButton({ graphId, onUnpinned }: { graphId: string; 
   const handleUnpin = async () => {
     setIsPending(true);
     try {
-      console.log('🗑️ Unpinning graph:', graphId);
       
       // Check if this is a fallback ID (not a real graph ID)
       if (graphId.startsWith('fallback-')) {
-        console.log('🔄 Fallback ID detected - removing locally only');
         // For fallback IDs, just remove locally without API call
         if (onUnpinned) {
           onUnpinned();
@@ -22,7 +20,6 @@ export default function UnpinButton({ graphId, onUnpinned }: { graphId: string; 
       }
       
       await unregisterDashboardGraph(graphId);
-      console.log('✅ Graph unpinned successfully');
       
       // Call the provided callback
       if (onUnpinned) {
@@ -34,14 +31,12 @@ export default function UnpinButton({ graphId, onUnpinned }: { graphId: string; 
       // More specific error handling
       if (error instanceof Error) {
         if (error.message.includes('405')) {
-          console.log('🔄 405 error - trying local removal as fallback');
           // Try to remove locally as fallback
           if (onUnpinned) {
             onUnpinned();
           }
           return; // Don't show error if we successfully removed locally
         } else if (error.message.includes('404')) {
-          console.log('🔄 404 error - graph not found, removing locally');
           // Graph not found, remove locally
           if (onUnpinned) {
             onUnpinned();

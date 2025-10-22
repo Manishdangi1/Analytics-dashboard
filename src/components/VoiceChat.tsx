@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Room, RoomEvent, RemoteParticipant, LocalParticipant, Track, LocalAudioTrack, createLocalAudioTrack, createLocalVideoTrack, VideoPresets } from "livekit-client";
 import { livekitCreateSession, livekitEndSession, livekitIssueToken, livekitQuery, livekitIngestTranscript, livekitMetadata } from "@/lib/queries";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface VoiceChatProps {
   onTranscript: (text: string) => void;
@@ -21,6 +22,7 @@ export default function VoiceChat({
   onSpeakingChange,
   onInterimTranscript 
 }: VoiceChatProps) {
+  const { theme } = useTheme();
   const [room, setRoom] = useState<Room | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -158,8 +160,6 @@ export default function VoiceChat({
     if (!sessionId) return;
     
     try {
-      console.log('🎤 Processing voice with fallback system:', transcript);
-      console.log('📡 Session ID:', sessionId);
       
       // Try LiveKit first, but fallback to regular chat API
       try {
@@ -173,12 +173,10 @@ export default function VoiceChat({
         });
         
         // Try LiveKit query first
-        console.log('📤 Trying LiveKit query...');
         const queryResponse = await sessionAPI.post(`/livekit/session/${sessionId}/query`, {
           question: transcript,
           context: null
         });
-        console.log('📥 LiveKit query response:', queryResponse.data);
         
         // Process LiveKit response
         if (queryResponse.data) {
@@ -190,24 +188,19 @@ export default function VoiceChat({
           }
           
           if (responseText && responseText.trim()) {
-            console.log('📥 LiveKit response:', responseText);
             
             // Trigger the transcript callback
             onTranscript(responseText);
             
             // Trigger TTS for the response
-            console.log('🔊 Triggering TTS for LiveKit response:', responseText);
             speakText(responseText);
             return;
           }
         }
         
       } catch (livekitError: any) {
-        console.log('❌ LiveKit query failed:', livekitError.response?.status);
-        console.log('❌ Error details:', livekitError.response?.data);
         
         // Fallback to regular chat API
-        console.log('🔄 Falling back to regular chat API...');
         try {
           const axios = (await import('axios')).default;
           const sessionAPI = axios.create({
@@ -226,7 +219,6 @@ export default function VoiceChat({
             conversation_context: null
           });
           
-          console.log('📥 Chat API response:', chatResponse.data);
           
           if (chatResponse.data) {
             let responseText = '';
@@ -238,13 +230,11 @@ export default function VoiceChat({
             }
             
             if (responseText && responseText.trim()) {
-              console.log('📥 Chat API response text:', responseText);
               
               // Trigger the transcript callback
               onTranscript(responseText);
               
               // Trigger TTS for the response
-              console.log('🔊 Triggering TTS for chat API response:', responseText);
               speakText(responseText);
             }
           }
@@ -264,19 +254,16 @@ export default function VoiceChat({
   const startVoiceProcessing = useCallback(() => {
     setIsVoiceActive(true);
     setIsListening(true);
-    console.log('🎤 Voice processing started with fallback system');
     
     // Start browser speech recognition
     if (recognitionRef.current) {
       try {
         recognitionRef.current.start();
-        console.log('🎤 Browser speech recognition started');
       } catch (error) {
         console.error('❌ Failed to start speech recognition:', error);
         onError('Failed to start voice recognition');
       }
     } else {
-      console.log('❌ Speech recognition not available');
       onError('Speech recognition not available in this browser');
     }
   }, [onError]);
@@ -296,7 +283,6 @@ export default function VoiceChat({
       speechSynthesis.cancel();
     }
     
-    console.log('Stopped voice processing');
   }, []);
 
   useEffect(() => {
@@ -327,7 +313,6 @@ export default function VoiceChat({
     
     try {
       setIsProcessing(true);
-      console.log('Sending query to LiveKit agent:', text);
       
       // Send query to LiveKit agent
       const response = await livekitQuery(sessionId, {
@@ -335,7 +320,6 @@ export default function VoiceChat({
         context: null
       });
       
-      console.log('LiveKit agent response:', response);
       
       // The response should contain the processed text
       if (response && typeof response === 'object') {
@@ -343,7 +327,6 @@ export default function VoiceChat({
         onTranscript(responseText);
         
         // LiveKit handles TTS on the server side
-        console.log('Response processed by LiveKit server');
       }
       
     } catch (error) {
@@ -359,7 +342,6 @@ export default function VoiceChat({
     if (!sessionId) return;
     
     try {
-      console.log('Sending transcript to LiveKit:', { text, role });
       
       await livekitIngestTranscript(sessionId, {
         role,
@@ -383,7 +365,6 @@ export default function VoiceChat({
     
     try {
       setIsProcessing(true);
-      console.log('Sending voice query to LiveKit:', text);
       
       // Send query to LiveKit using your API
       const response = await livekitQuery(sessionId, {
@@ -391,7 +372,6 @@ export default function VoiceChat({
         context: null
       });
       
-      console.log('LiveKit query response:', response);
       
       // Process the response
       if (response) {
@@ -418,7 +398,6 @@ export default function VoiceChat({
           onTranscript(responseText);
           
           // Trigger TTS for the response
-          console.log('🔊 Triggering TTS for agent response:', responseText);
           speakText(responseText);
         }
       }
@@ -436,31 +415,22 @@ export default function VoiceChat({
       setIsConnecting(true);
       onError("");
 
-      console.log('🚀 Starting voice session with LiveKit APIs...');
 
       // Create LiveKit session
-      console.log('🚀 Creating LiveKit session...');
       const sessionResponse = await livekitCreateSession({
         display_name: "User",
         transcript_id: null
       });
 
-      console.log("📥 LiveKit session created:", sessionResponse);
-      console.log("📥 Session ID:", sessionResponse.session_id);
-      console.log("📥 Room name:", sessionResponse.room_name);
-      console.log("📥 URL:", sessionResponse.url);
 
       // Store session ID
       setSessionId(sessionResponse.session_id);
 
       // Get room token
-      console.log('🎫 Getting LiveKit room token...');
       const tokenResponse = await livekitIssueToken(sessionResponse.session_id);
-      console.log("🎫 Room token received:", tokenResponse);
       
       if (tokenResponse.token) {
         setLivekitRoomToken(tokenResponse.token);
-        console.log("🎫 Room token stored successfully");
       }
 
       // Start voice processing
@@ -468,7 +438,6 @@ export default function VoiceChat({
       setIsConnecting(false);
       startVoiceProcessing();
       
-      console.log('✅ Voice session started successfully with LiveKit');
 
       if (!sessionResponse.session_id) {
         throw new Error("Failed to create LiveKit session");
@@ -485,9 +454,6 @@ export default function VoiceChat({
 
       // Set up event listeners
       newRoom.on(RoomEvent.Connected, () => {
-        console.log("✅ Connected to LiveKit room");
-        console.log("📡 Room name:", newRoom.name);
-        console.log("👥 Participants:", newRoom.numParticipants);
         setIsConnected(true);
         setIsConnecting(false);
         // Start voice processing with LiveKit APIs
@@ -495,26 +461,21 @@ export default function VoiceChat({
       });
 
       newRoom.on(RoomEvent.Disconnected, () => {
-        console.log("Disconnected from LiveKit room");
         setIsConnected(false);
         setIsConnecting(false);
         stopVoiceProcessing();
       });
 
       newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-        console.log("Participant connected:", participant.identity);
         setParticipants(prev => [...prev, participant]);
       });
 
       newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
-        console.log("Participant disconnected:", participant.identity);
         setParticipants(prev => prev.filter(p => p.identity !== participant.identity));
       });
 
       newRoom.on(RoomEvent.TrackSubscribed, (track: Track, publication: any, participant: RemoteParticipant) => {
-        console.log('🎵 Track subscribed:', track.kind, 'from participant:', participant.identity);
         if (track.kind === Track.Kind.Audio) {
-          console.log('🔊 Audio track subscribed, setting up playback...');
           
           // Create audio element if it doesn't exist
           if (!audioRef.current) {
@@ -527,12 +488,10 @@ export default function VoiceChat({
             audio.muted = false;
             document.body.appendChild(audio);
             audioRef.current = audio;
-            console.log('🔊 Audio element created');
           }
           
           // Attach the track to the audio element
           const audioElement = track.attach();
-          console.log('🔊 Audio element attached to track');
           
           // Set up audio element for playback
           if (audioRef.current) {
@@ -543,11 +502,9 @@ export default function VoiceChat({
             
             // Add event listeners before playing
             audioRef.current.onloadedmetadata = () => {
-              console.log('🔊 Audio metadata loaded, duration:', audioRef.current?.duration);
             };
             
             audioRef.current.oncanplay = () => {
-              console.log('🔊 Audio can play, attempting to play...');
               // Try to play when ready
               audioRef.current?.play().catch((error) => {
                 console.error('❌ Auto-play failed:', error);
@@ -555,12 +512,10 @@ export default function VoiceChat({
             };
             
             audioRef.current.onplay = () => {
-              console.log('✅ Audio playback started');
               setIsSpeaking(true);
             };
             
             audioRef.current.onended = () => {
-              console.log('🔇 Audio playback ended');
               setIsSpeaking(false);
             };
             
@@ -570,16 +525,13 @@ export default function VoiceChat({
             };
             
             audioRef.current.onpause = () => {
-              console.log('⏸️ Audio playback paused');
               setIsSpeaking(false);
             };
             
             // Force play if autoplay doesn't work
             setTimeout(() => {
               if (audioRef.current && audioRef.current.paused) {
-                console.log('🔊 Attempting manual play...');
                 audioRef.current.play().then(() => {
-                  console.log('✅ Manual play successful');
                 }).catch((error) => {
                   console.error('❌ Manual play failed:', error);
                 });
@@ -590,9 +542,7 @@ export default function VoiceChat({
       });
 
       newRoom.on(RoomEvent.TrackUnsubscribed, (track: Track) => {
-        console.log('🎵 Track unsubscribed:', track.kind);
         if (track.kind === Track.Kind.Audio) {
-          console.log('🔇 Audio track unsubscribed');
           setIsSpeaking(false);
         }
         track.detach();
@@ -601,17 +551,13 @@ export default function VoiceChat({
       newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
         try {
           const data = JSON.parse(new TextDecoder().decode(payload));
-          console.log('📨 LiveKit data received:', data);
-          console.log('📨 From participant:', participant?.identity);
           
           if (data.type === 'voice_transcript' && data.text) {
             // Handle voice transcript from LiveKit
-            console.log('🎤 Voice transcript received:', data.text);
             onTranscript(data.text);
             sendTranscriptToLiveKit(data.text, 'user');
           } else if (data.type === 'voice_response' && data.text) {
             // Handle voice response from LiveKit
-            console.log('🤖 Voice response received:', data.text);
             onTranscript(data.text);
             sendTranscriptToLiveKit(data.text, 'assistant');
             
@@ -619,24 +565,19 @@ export default function VoiceChat({
             speakText(data.text);
           } else if (data.type === 'voice_query' && data.text) {
             // Handle voice query
-            console.log('❓ Voice query received:', data.text);
             sendVoiceQuery(data.text);
           } else if (data.type === 'interim_transcript' && data.text) {
             // Handle interim transcript
-            console.log('⏳ Interim transcript:', data.text);
             setInterimTranscript(data.text);
             onInterimTranscript?.(data.text);
           } else if (data.type === 'agent_audio_ready') {
             // Agent is about to speak
-            console.log('🔊 Agent audio ready, waiting for audio track...');
             setIsSpeaking(true);
           } else if (data.type === 'agent_audio_end') {
             // Agent finished speaking
-            console.log('🔇 Agent audio ended');
             setIsSpeaking(false);
           } else if (data.type === 'tts_response' && data.text) {
             // Handle TTS response from agent
-            console.log('🔊 TTS response received:', data.text);
             speakText(data.text);
           } else if (data.type === 'error') {
             // Handle errors from LiveKit
@@ -649,19 +590,11 @@ export default function VoiceChat({
       });
 
       // Connect to room
-      console.log('🔗 Connecting to LiveKit room...');
-      console.log('🔗 URL:', sessionResponse.url);
-      console.log('🔗 Token length:', sessionResponse.token?.length || 0);
       
       // Use LiveKit Cloud WebSocket URL from environment
       const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://test-d2mkesrx.livekit.cloud';
       const roomName = `${process.env.NEXT_PUBLIC_LIVEKIT_ROOM_PREFIX || 'indus'}-${sessionResponse.session_id}`;
       
-      console.log('🌐 LiveKit Cloud URL:', livekitUrl);
-      console.log('🏠 Room name:', roomName);
-      console.log('🎫 Token length:', sessionResponse.token?.length || 0);
-      console.log('🔑 LiveKit API Key:', process.env.NEXT_PUBLIC_LIVEKIT_API_KEY ? 'Present' : 'Missing');
-      console.log('🔑 LiveKit API Secret:', process.env.NEXT_PUBLIC_LIVEKIT_API_SECRET ? 'Present' : 'Missing');
       
       // Validate token before connecting
       if (!sessionResponse.token) {
@@ -675,14 +608,12 @@ export default function VoiceChat({
       // Connect to LiveKit room with error handling
       try {
         await newRoom.connect(livekitUrl, sessionResponse.token);
-        console.log('✅ Successfully connected to LiveKit Cloud room');
       } catch (connectError) {
         console.error('❌ Failed to connect to LiveKit room:', connectError);
         throw new Error(`Failed to connect to LiveKit: ${connectError instanceof Error ? connectError.message : String(connectError)}`);
       }
       
       // Enable microphone with proper error handling
-      console.log('🎤 Requesting microphone permission...');
       try {
         // Request microphone permission first
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -692,30 +623,24 @@ export default function VoiceChat({
             autoGainControl: true
           } 
         });
-        console.log('✅ Microphone permission granted');
         
         // Create audio track from the stream
         const audioTrack = await createLocalAudioTrack({
           deviceId: stream.getAudioTracks()[0].getSettings().deviceId
         });
-        console.log('🎤 Audio track created:', audioTrack);
         
         // Stop the temporary stream
         stream.getTracks().forEach(track => track.stop());
         
-        console.log('📤 Publishing audio track...');
         await newRoom.localParticipant.publishTrack(audioTrack);
-        console.log('✅ Audio track published');
         audioTrackRef.current = audioTrack;
         
         // Set up voice activity detection
         audioTrack.on('muted', () => {
-          console.log('🎤 Audio track muted');
           setIsMuted(true);
         });
         
         audioTrack.on('unmuted', () => {
-          console.log('🎤 Audio track unmuted');
           setIsMuted(false);
         });
         
@@ -766,7 +691,6 @@ export default function VoiceChat({
         try {
           await livekitEndSession(sessionId);
         } catch (error) {
-          console.log('LiveKit session cleanup failed (expected):', error);
         }
         setSessionId(null);
       }
@@ -780,7 +704,6 @@ export default function VoiceChat({
       setInterimTranscript("");
       setCurrentTranscript("");
       
-      console.log('✅ Voice session ended successfully');
     } catch (error) {
       console.error("Error ending voice session:", error);
       onError("Error ending voice session");
@@ -831,62 +754,112 @@ export default function VoiceChat({
 
 
   return (
-    <div className="flex items-center justify-center gap-3">
+    <div className="flex items-center justify-center gap-4">
       {/* Main Voice Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         {/* Voice Chat Toggle */}
         <button
           onClick={onToggle}
           disabled={isConnecting}
-          className={`relative inline-flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-300 pressable ${
+          className={`relative inline-flex items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 pressable group ${
             isEnabled
-              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 dark:from-emerald-500 dark:to-teal-500 dark:text-white dark:shadow-emerald-500/30 light:from-emerald-600 light:to-teal-600 light:text-white light:shadow-emerald-500/40"
-              : "bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:border-white/20 dark:bg-white/5 dark:border-white/10 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:border-white/20 light:bg-gray-100/80 light:border-gray-300/60 light:text-gray-600 light:hover:bg-gray-200/90 light:hover:border-gray-400/70"
+              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50"
+              : theme === "light"
+              ? "bg-white/90 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 text-slate-600 hover:text-emerald-600 shadow-sm backdrop-blur-sm"
+              : "bg-white/10 border border-white/20 hover:bg-emerald-500/20 hover:border-emerald-500/50 text-slate-400 hover:text-emerald-400 backdrop-blur-sm"
           } ${isConnecting ? "opacity-50 cursor-not-allowed" : ""}`}
           title={isEnabled ? "Disable voice chat" : "Enable voice chat"}
         >
-          {isConnecting ? (
-            <div className="w-5 h-5 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
-          ) : isEnabled ? (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-              <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-              <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5a.75.75 0 001.5 0v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 11-9 0v-.357z" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-              <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-              <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5a.75.75 0 001.5 0v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 11-9 0v-.357z" />
-            </svg>
+          {/* Background glow effect */}
+          {isEnabled && (
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
           )}
+          
+          {/* Icon container */}
+          <div className="relative z-10">
+            {isConnecting ? (
+              <div className="w-6 h-6 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
+            ) : isEnabled ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 group-hover:scale-110 transition-transform duration-200">
+                <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
+                <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5a.75.75 0 001.5 0v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 11-9 0v-.357z" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 group-hover:scale-110 transition-transform duration-200">
+                <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
+                <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5a.75.75 0 001.5 0v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 11-9 0v-.357z" />
+              </svg>
+            )}
+          </div>
           
           {/* Active indicator */}
           {isEnabled && (
-            <div className="absolute -top-0.5 -right-0.5">
-              <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse" />
-              <div className="absolute inset-0 w-3 h-3 bg-emerald-400 rounded-full animate-ping" />
+            <div className="absolute -top-1 -right-1">
+              <div className="w-4 h-4 bg-emerald-400 rounded-full animate-pulse shadow-lg" />
+              <div className="absolute inset-0 w-4 h-4 bg-emerald-400 rounded-full animate-ping" />
             </div>
           )}
         </button>
 
-        {/* Simplified Status Indicator */}
+        {/* Enhanced Status Indicator */}
         {isEnabled && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 dark:from-emerald-500/10 dark:to-teal-500/10 dark:border-emerald-500/20 light:from-emerald-500/20 light:to-teal-500/20 light:border-emerald-500/40 light:bg-emerald-50/80">
+          <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
+            theme === "light"
+              ? "bg-gradient-to-r from-emerald-50/90 to-teal-50/90 border border-emerald-200 shadow-sm backdrop-blur-sm"
+              : "bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 backdrop-blur-sm"
+          }`}>
             {isListening && (
               <>
-                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse dark:bg-emerald-400 light:bg-emerald-500" />
-                <span className="text-xs text-emerald-400 font-medium dark:text-emerald-400 light:text-emerald-600">Listening</span>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    <div className="absolute inset-0 w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                  </div>
+                  <span className={`text-sm font-semibold ${
+                    theme === "light" ? "text-emerald-700" : "text-emerald-400"
+                  }`}>Listening</span>
+                </div>
+                <div className="flex space-x-1">
+                  <div className="w-1 h-4 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1 h-3 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1 h-5 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+                </div>
               </>
             )}
             {isSpeaking && !isListening && (
               <>
-                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse dark:bg-purple-400 light:bg-purple-500" />
-                <span className="text-xs text-purple-400 font-medium dark:text-purple-400 light:text-purple-600">Speaking</span>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                    <div className="absolute inset-0 w-2 h-2 bg-purple-500 rounded-full animate-ping" />
+                  </div>
+                  <span className={`text-sm font-semibold ${
+                    theme === "light" ? "text-purple-700" : "text-purple-400"
+                  }`}>Speaking</span>
+                </div>
+                <div className="flex space-x-1">
+                  <div className="w-1 h-3 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1 h-5 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1 h-4 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+                </div>
               </>
             )}
             {!isListening && !isSpeaking && (
               <>
-                <div className="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse dark:bg-teal-400 light:bg-teal-500" />
-                <span className="text-xs text-teal-400 font-medium dark:text-teal-400 light:text-teal-600">Active</span>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse" />
+                    <div className="absolute inset-0 w-2 h-2 bg-teal-500 rounded-full animate-ping" />
+                  </div>
+                  <span className={`text-sm font-semibold ${
+                    theme === "light" ? "text-teal-700" : "text-teal-400"
+                  }`}>Ready</span>
+                </div>
+                <div className="flex space-x-1">
+                  <div className="w-1 h-2 bg-teal-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1 h-3 bg-teal-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1 h-2 bg-teal-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+                </div>
               </>
             )}
           </div>
@@ -900,7 +873,6 @@ export default function VoiceChat({
         controls={false}
         style={{ display: 'none' }}
         onEnded={() => {
-          console.log(' Audio playback ended');
           setIsSpeaking(false);
         }}
         onError={(e) => {
@@ -908,11 +880,9 @@ export default function VoiceChat({
           setIsSpeaking(false);
         }}
         onPlay={() => {
-          console.log('▶ Audio playback started');
           setIsSpeaking(true);
         }}
         onPause={() => {
-          console.log('Audio playback paused');
           setIsSpeaking(false);
         }}
       />

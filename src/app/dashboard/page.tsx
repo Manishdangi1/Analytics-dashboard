@@ -1,5 +1,5 @@
 "use client";
-import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, authMe, registerDashboardGraph, unregisterDashboardGraph } from "@/lib/queries";
+import { listDashboardGraphs, processQuery, listTranscripts, deleteTranscript, createTranscript, updateTranscript, authMe, registerDashboardGraph, unregisterDashboardGraph, deleteDashboardGraph } from "@/lib/queries";
 import { extractTranscriptId } from "@/lib/ids";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryResultsPoll } from "@/hooks/useQueryResultsPoll";
@@ -32,7 +32,7 @@ export default function DashboardPage() {
 
   // Debug grid state changes
   useEffect(() => {
-    console.log('Grid columns changed to:', gridCols);
+    // Grid columns changed
   }, [gridCols]);
 
   // Track window width for responsive grid
@@ -299,25 +299,20 @@ export default function DashboardPage() {
   // Function to remove a specific graph from local state
   const removeGraphFromState = (graphIdToRemove: string) => {
     setGraphs(prevGraphs => {
-      console.log('🗑️ Removing graph from state:', graphIdToRemove);
-      console.log('📊 Current graphs before removal:', prevGraphs.length);
       
       // Use index-based filtering for more reliable removal
       const filteredGraphs = prevGraphs.filter((graph, index) => {
         const currentGraphId = graph.graph_id || `fallback-${index}`;
         const shouldKeep = currentGraphId !== graphIdToRemove;
-        console.log(`🔍 Graph ${currentGraphId} (index ${index}) ${shouldKeep ? 'kept' : 'removed'}`);
         return shouldKeep;
       });
       
-      console.log('📊 Graphs after removal:', filteredGraphs.length);
       return filteredGraphs;
     });
   };
 
   // Function to remove all graphs from local state
   const removeAllGraphsFromState = () => {
-    console.log('🗑️ Removing all graphs from state');
     setGraphs([]);
   };
   useEffect(() => {
@@ -364,7 +359,6 @@ export default function DashboardPage() {
     }
     if (bundle.transcript_id && transcriptId && bundle.transcript_id !== transcriptId) return;
     if (ignoreResponsesRef.current) {
-      console.log('Ignoring response due to ignoreResponsesRef flag');
       return; // user cancelled current wait
     }
     // Get description from the correct location in the API response
@@ -372,22 +366,6 @@ export default function DashboardPage() {
     // Get graphs from the correct location in the API response (PendingResultBundle structure)
     const allGraphs = (bundle.graphs?.graphs as GraphItem[] | undefined) ?? [];
     
-    // Debug: Log the bundle structure to understand what we're getting
-    console.log('🚀 NEW CODE IS RUNNING! 🚀');
-    console.log('=== BUNDLE DEBUG ===');
-    console.log('Full bundle:', JSON.stringify(bundle, null, 2));
-    console.log('Bundle graphs:', bundle.graphs);
-    console.log('All graphs found:', allGraphs);
-    console.log('Graph types:', allGraphs.map((g: any) => ({ 
-      type: g.type, 
-      hasPayload: !!g.payload,
-      payloadType: g.payload?.type,
-      payloadGraphType: g.payload?.graph_type,
-      hasData: !!g.payload?.data,
-      hasHtml: !!g.html, 
-      hasFigure: !!g.figure
-    })));
-    console.log('==================');
     
     // Helper function to normalize graph structure
     const normalizeGraph = (g: any) => {
@@ -425,7 +403,6 @@ export default function DashboardPage() {
       if (normalized.title?.toLowerCase().includes('employee') && 
           normalized.data?.length > 0 && 
           normalized.data[0]?.employee_name) {
-        console.log('🔄 Aggregating employee data for chart');
         
         // Group by department and count employees
         const departmentCounts = normalized.data.reduce((acc: any, employee: any) => {
@@ -440,7 +417,6 @@ export default function DashboardPage() {
           value: count
         }));
 
-        console.log('✅ Employee data aggregated:', normalized.data);
       }
 
       return normalized;
@@ -448,54 +424,33 @@ export default function DashboardPage() {
 
     // Updated graph detection logic to handle the new API structure
     const filteredGraphs = allGraphs.filter((g: any) => {
-      console.log('Checking graph:', g);
       
       // Check for old structure (html/figure)
       if (g.html || g.figure) {
-        console.log('✅ Found old structure graph');
         return true;
       }
       
       // Check for new structure (type: "graph" with payload)
       if (g.type === "graph" && g.payload && g.payload.graph_type && g.payload.data) {
-        console.log('✅ Found new structure graph');
         return true;
       }
       
       // Check for direct graph_type and data properties (even if data is empty)
       if (g.graph_type && (g.data !== undefined)) {
-        console.log('✅ Found direct structure graph');
         return true;
       }
       
       // Check for summary_card type graphs
       if (g.type === "summary_card" || g.graph_type === "summary_card") {
-        console.log('✅ Found summary card graph');
         return true;
       }
       
-      console.log('❌ Graph not detected');
       return false;
     }).map(normalizeGraph);
-    
-    console.log('Filtered graphs:', filteredGraphs);
-    console.log('🎯 GRAPH DETECTION RESULT:', {
-      allGraphsCount: allGraphs.length,
-      filteredGraphsCount: filteredGraphs.length,
-      hasGraphs: filteredGraphs.length > 0
-    });
     
     const hasDescription = typeof description === "string" && description.trim().length > 0;
     const hasGraphs = filteredGraphs.length > 0;
     if (hasDescription || hasGraphs) {
-      console.log('Adding response to chat:', { 
-        hasDescription, 
-        hasGraphs, 
-        transcriptId,
-        chatIdUser: bundle.chat_id_user,
-        chatIdAssistant: bundle.chat_id,
-        bundle: bundle
-      });
       // Add response first
       setChat((prev) => [...prev, { role: "assistant", text: hasDescription ? description : undefined, graphs: hasGraphs ? filteredGraphs : undefined, userQuestion: currentUserQuestion || undefined }]);
       // Mark that response was added
@@ -549,13 +504,21 @@ export default function DashboardPage() {
       <div className="h-screen flex items-center justify-center page-gradient">
         <div className="text-center space-y-6">
           <div className="relative">
-            <div className="w-16 h-16 rounded-full border-4 border-white/20 mx-auto"></div>
+            <div className={`w-16 h-16 rounded-full border-4 mx-auto ${
+              theme === "light" ? "border-slate-300" : "border-white/20"
+            }`}></div>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full border-4 border-transparent border-t-primary animate-spin"></div>
             <div className="absolute top-1 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full border-4 border-transparent border-t-accent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-white indus-text-gradient">Loading Dashboard</h3>
-            <p className="text-white/70">Preparing your analytics workspace...</p>
+            <h3 className={`text-lg font-semibold ${
+              theme === "light" 
+                ? "bg-gradient-to-r from-slate-900 via-blue-800 to-purple-800 bg-clip-text text-transparent"
+                : "text-white indus-text-gradient"
+            }`}>Loading Dashboard</h3>
+            <p className={`${
+              theme === "light" ? "text-slate-600" : "text-white/70"
+            }`}>Preparing your analytics workspace...</p>
           </div>
           <div className="flex justify-center space-x-1">
             <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -595,182 +558,146 @@ export default function DashboardPage() {
           )}
           
           {/* Enhanced Header Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 fade-in-up">
-            <div className="flex items-center gap-4">
-              <div className="hover-scale group">
-                <Logo size="xl" className="drop-shadow-2xl" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 fade-in-up">
+            <div className="flex items-center gap-6">
+              <div className="hover-scale group relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                <Logo size="xl" className="drop-shadow-2xl relative z-10" />
               </div>
-              <div>
-                <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${
+              <div className="space-y-2">
+                <h1 className={`text-3xl sm:text-4xl font-bold tracking-tight ${
                   theme === "light"
                     ? "bg-gradient-to-r from-slate-900 via-blue-800 to-purple-800 bg-clip-text text-transparent"
                     : "bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent"
                 }`}>Analytics Dashboard</h1>
-                <p className={theme === "light" ? "text-slate-700 text-sm hidden sm:block font-medium" : "text-slate-400 text-sm hidden sm:block"}>Real-time insights and data visualizations</p>
+                <div className="flex items-center gap-3">
+                  <p className={`text-sm font-medium ${
+                    theme === "light" ? "text-slate-600" : "text-slate-400"
+                  }`}>Real-time insights and data visualizations</p>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <span className={`text-xs font-medium ${
+                      theme === "light" ? "text-emerald-600" : "text-emerald-400"
+                    }`}>Live</span>
+                  </div>
+                </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
               {/* Enhanced Grid Controls */}
-              <div className="hidden sm:flex items-center gap-1 text-xs">
-                <span className={theme === "light" ? "text-slate-700 font-semibold" : "text-slate-400"}>Layout</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('Setting grid to 1 column');
-                    setGridCols(1);
-                  }}
-                  className={
-                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
-                    (gridCols === 1 
-                      ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
-                      : theme === "light"
-                      ? "bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-600 text-slate-700 shadow-sm"
-                      : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30 text-slate-400")
-                  }
-                  title="1 column"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                    <rect x="3" y="5" width="14" height="10" rx="2" className="fill-current opacity-90" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('Setting grid to 2 columns');
-                    setGridCols(2);
-                  }}
-                  className={
-                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
-                    (gridCols === 2 
-                      ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
-                      : theme === "light"
-                      ? "bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-600 text-slate-700 shadow-sm"
-                      : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30 text-slate-400")
-                  }
-                  title="2 columns"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" className="w-5 h-5">
-                    <rect x="3" y="5" width="6" height="10" rx="2" className="fill-current opacity-90" />
-                    <rect x="11" y="5" width="6" height="10" rx="2" className="fill-current opacity-60" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('Setting grid to 3 columns');
-                    setGridCols(3);
-                  }}
-                  className={
-                    "inline-flex items-center justify-center w-9 h-8 rounded-lg border text-xs transition-all pressable hover-scale " +
-                    (gridCols === 3 
-                      ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
-                      : theme === "light"
-                      ? "bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-600 text-slate-700 shadow-sm"
-                      : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/80 hover:border-blue-500/30 text-slate-400")
-                  }
-                  title="3 columns"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" className="w-5 h-5">
-                    <rect x="2.5" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-90" />
-                    <rect x="7.75" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-75" />
-                    <rect x="13" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-60" />
-                  </svg>
-                </button>
+              <div className={`hidden sm:flex items-center gap-3 px-4 py-2 rounded-xl ${
+                theme === "light" 
+                  ? "bg-white/80 border border-slate-200 shadow-sm backdrop-blur-sm" 
+                  : "bg-white/5 border border-white/10 backdrop-blur-sm"
+              }`}>
+                <span className={`text-sm font-semibold ${
+                  theme === "light" ? "text-slate-700" : "text-slate-300"
+                }`}>Layout</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setGridCols(1)}
+                    className={`inline-flex items-center justify-center w-10 h-9 rounded-lg border text-sm transition-all duration-200 pressable hover-scale ${
+                      gridCols === 1 
+                        ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
+                        : theme === "light"
+                        ? "bg-white border-slate-300 hover:bg-blue-50 hover:border-blue-500 text-slate-600 shadow-sm"
+                        : "bg-white/10 border-white/20 hover:bg-white/20 hover:border-blue-500/50 text-slate-400"
+                    }`}
+                    title="1 column"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <rect x="3" y="5" width="14" height="10" rx="2" className="fill-current opacity-90" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGridCols(2)}
+                    className={`inline-flex items-center justify-center w-10 h-9 rounded-lg border text-sm transition-all duration-200 pressable hover-scale ${
+                      gridCols === 2 
+                        ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
+                        : theme === "light"
+                        ? "bg-white border-slate-300 hover:bg-blue-50 hover:border-blue-500 text-slate-600 shadow-sm"
+                        : "bg-white/10 border-white/20 hover:bg-white/20 hover:border-blue-500/50 text-slate-400"
+                    }`}
+                    title="2 columns"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" className="w-4 h-4">
+                      <rect x="3" y="5" width="6" height="10" rx="2" className="fill-current opacity-90" />
+                      <rect x="11" y="5" width="6" height="10" rx="2" className="fill-current opacity-60" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGridCols(3)}
+                    className={`inline-flex items-center justify-center w-10 h-9 rounded-lg border text-sm transition-all duration-200 pressable hover-scale ${
+                      gridCols === 3 
+                        ? "bg-gradient-to-br from-blue-600 to-purple-600 border-transparent shadow-lg shadow-blue-500/30 text-white" 
+                        : theme === "light"
+                        ? "bg-white border-slate-300 hover:bg-blue-50 hover:border-blue-500 text-slate-600 shadow-sm"
+                        : "bg-white/10 border-white/20 hover:bg-white/20 hover:border-blue-500/50 text-slate-400"
+                    }`}
+                    title="3 columns"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" className="w-4 h-4">
+                      <rect x="2.5" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-90" />
+                      <rect x="7.75" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-75" />
+                      <rect x="13" y="5" width="4.5" height="10" rx="1.8" className="fill-current opacity-60" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               
-              {/* Unpin All Button */}
-              {graphs.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={async () => {
-                      if (confirm(`Are you sure you want to remove all ${graphs.length} graphs from the dashboard?`)) {
-                        try {
-                          // Try to unpin all graphs via API
-                          const unpinPromises = graphs.map((graph, index) => {
-                            const graphId = graph.graph_id || `fallback-${index}`;
-                            if (graphId.startsWith('fallback-')) {
-                              return Promise.resolve(); // Skip API call for fallback IDs
-                            }
-                            return unregisterDashboardGraph(graphId).catch(error => {
-                              console.warn('Failed to unpin graph via API:', error);
-                              return Promise.resolve(); // Continue with other graphs
-                            });
-                          });
-                          
-                          await Promise.allSettled(unpinPromises);
-                          
-                          // Remove all graphs from local state
-                          removeAllGraphsFromState();
-                          showSuccess(`All ${graphs.length} graphs removed from dashboard!`);
-                        } catch (error) {
-                          console.error('Error unpinning all graphs:', error);
-                          // Still remove locally even if API fails
-                          removeAllGraphsFromState();
-                          showSuccess(`All ${graphs.length} graphs removed from dashboard!`);
-                        }
-                      }
-                    }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all pressable hover-glow group ${
-                      theme === "light"
-                        ? "bg-slate-50 border border-slate-300 hover:bg-red-50 hover:border-red-300 text-slate-700 hover:text-red-700 shadow-sm"
-                        : "bg-slate-800/60 border border-slate-700/60 hover:bg-red-500/10 hover:border-red-500/30 text-slate-400 hover:text-red-400"
-                    }`}
-                    title="Remove all graphs from dashboard"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:scale-110 transition-transform">
-                      <path fillRule="evenodd" d="M8.5 2a1 1 0 000 2h3a1 1 0 100-2h-3zM4 5a2 2 0 012-2h8a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 3a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm font-medium">Unpin All</span>
-                  </button>
-                  
-                </div>
-              )}
               
               {/* Enhanced User Info and Actions */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 {/* Theme Toggle */}
                 <ThemeToggle />
                 
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg hover-lift group ${
+                <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl hover-lift group transition-all duration-200 ${
                   theme === "light" 
-                    ? "bg-slate-50 border border-slate-300 shadow-sm" 
-                    : "indus-card"
+                    ? "bg-white/80 border border-slate-200 shadow-sm backdrop-blur-sm" 
+                    : "bg-white/5 border border-white/10 backdrop-blur-sm"
                 }`}>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/30">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg shadow-blue-500/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <span className={`text-sm font-medium ${theme === "light" ? "text-slate-800" : "text-white"}`}>
-                    {isLoadingUser ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 border border-white/30 border-t-transparent rounded-full animate-spin" />
-                        <span>Loading...</span>
-                      </div>
-                    ) : (
-                      userName || userEmail || "User"
-                    )}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className={`text-sm font-semibold ${theme === "light" ? "text-slate-800" : "text-white"}`}>
+                      {isLoadingUser ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 border border-white/30 border-t-transparent rounded-full animate-spin" />
+                          <span>Loading...</span>
+                        </div>
+                      ) : (
+                        userName || userEmail || "User"
+                      )}
+                    </span>
+                    <span className={`text-xs ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>
+                      {isLoadingUser ? "" : "Dashboard User"}
+                    </span>
+                  </div>
                 </div>
+                
                 <button
                   onClick={() => {
                     clearAccessToken();
                     if (typeof window !== "undefined") window.location.href = "/login";
                   }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all pressable hover-glow group ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 pressable hover-glow group ${
                     theme === "light"
-                      ? "bg-slate-50 border border-slate-300 hover:bg-red-50 hover:border-red-400 shadow-sm"
-                      : "indus-card hover:bg-white/10"
+                      ? "bg-white/80 border border-slate-200 hover:bg-red-50 hover:border-red-300 text-slate-600 hover:text-red-600 shadow-sm backdrop-blur-sm"
+                      : "bg-white/5 border border-white/10 hover:bg-red-500/10 hover:border-red-500/30 text-slate-400 hover:text-red-400 backdrop-blur-sm"
                   }`}
                   title="Logout"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 group-hover:text-red-600 group-hover:translate-x-1 transition-all ${
-                    theme === "light" ? "text-slate-600" : "text-neutral-400"
-                  }`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200">
                     <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
                   </svg>
-                  <span className={`text-sm group-hover:text-red-600 transition-colors ${theme === "light" ? "text-slate-700 font-medium" : "text-neutral-400"}`}>Logout</span>
+                  <span className="text-sm font-semibold">Logout</span>
                 </button>
               </div>
             </div>
@@ -779,11 +706,89 @@ export default function DashboardPage() {
 
           {/* Enhanced Dashboard Graphs Grid */}
           <div className="fade-in-up">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <h2 className={`text-xl font-semibold ${theme === "light" ? "text-slate-900" : "text-gray-100"}`}>Visualizations</h2>
-                <div className="w-8 h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    theme === "light" 
+                      ? "bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-200" 
+                      : "bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30"
+                  }`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-6 h-6 ${
+                      theme === "light" ? "text-blue-600" : "text-blue-400"
+                    }`}>
+                      <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold ${theme === "light" ? "text-slate-900" : "text-gray-100"}`}>Visualizations</h2>
+                    <p className={`text-sm ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
+                      {graphs.length} pinned chart{graphs.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="w-12 h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
               </div>
+              
+              {graphs.length > 0 && (
+                <div className="flex items-center gap-4">
+                  <div className={`px-4 py-2 rounded-xl ${
+                    theme === "light"
+                      ? "bg-emerald-50 border border-emerald-200"
+                      : "bg-emerald-500/10 border border-emerald-500/30"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                      <span className={`text-sm font-medium ${
+                        theme === "light" ? "text-emerald-700" : "text-emerald-400"
+                      }`}>Active Dashboard</span>
+                    </div>
+                  </div>
+                  
+                  {/* Delete All Button */}
+                  <button
+                    onClick={async () => {
+                      if (confirm(`Are you sure you want to DELETE all ${graphs.length} graphs from the dashboard? This action cannot be undone.`)) {
+                        try {
+                          // Delete all graphs via API
+                          const deletePromises = graphs.map((graph, index) => {
+                            const graphId = graph.graph_id || `fallback-${index}`;
+                            if (graphId.startsWith('fallback-')) {
+                              return Promise.resolve(); // Skip API call for fallback IDs
+                            }
+                            return deleteDashboardGraph(graphId).catch(error => {
+                              console.warn('Failed to delete graph via API:', error);
+                              return Promise.resolve(); // Continue with other graphs
+                            });
+                          });
+                          
+                          await Promise.allSettled(deletePromises);
+                          
+                          // Remove all graphs from local state
+                          removeAllGraphsFromState();
+                          showSuccess(`All ${graphs.length} graphs deleted from dashboard!`);
+                        } catch (error) {
+                          console.error('Error deleting all graphs:', error);
+                          // Still remove locally even if API fails
+                          removeAllGraphsFromState();
+                          showSuccess(`All ${graphs.length} graphs deleted from dashboard!`);
+                        }
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 pressable hover-glow group ${
+                      theme === "light"
+                        ? "bg-white/80 border border-red-200 hover:bg-red-50 hover:border-red-300 text-red-600 hover:text-red-700 shadow-sm backdrop-blur-sm"
+                        : "bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400 hover:text-red-300 backdrop-blur-sm"
+                    }`}
+                    title="Delete all graphs from dashboard (permanent)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:scale-110 transition-transform duration-200">
+                      <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-semibold">Delete All</span>
+                  </button>
+                </div>
+              )}
             </div>
             
             {isFetching ? (
@@ -807,61 +812,99 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : graphs.length === 0 ? (
-              <div className="min-h-[600px] flex flex-col items-center justify-center p-8 space-y-8">
-                {/* Hero Section */}
-                <div className="text-center space-y-6 max-w-2xl">
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/50 animate-pulse">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-12 h-12 text-white">
-                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                      </svg>
-                    </div>
+              <div className="min-h-[500px] flex flex-col items-center justify-center p-8 space-y-8">
+                {/* Enhanced Hero Section */}
+                <div className="text-center space-y-6">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center mx-auto shadow-xl shadow-blue-500/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-10 h-10 text-white">
+                      <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                    </svg>
                   </div>
                   
-                  <div>
-                    <h3 className="text-4xl font-extrabold bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent mb-4">
+                  <div className="space-y-3">
+                    <h3 className={`text-3xl font-bold ${
+                      theme === "light" ? "text-slate-900" : "text-gray-100"
+                    }`}>
                       Your Dashboard Awaits
                     </h3>
-                    <p className="text-lg text-slate-300 leading-relaxed max-w-xl mx-auto">
-                      Start a conversation with AI to generate beautiful visualizations and pin your favorite insights here
+                    <p className={`text-base max-w-lg mx-auto leading-relaxed ${
+                      theme === "light" ? "text-slate-600" : "text-slate-400"
+                    }`}>
+                      Start conversations with AI to generate beautiful visualizations and pin your favorite insights here
                     </p>
                   </div>
                 </div>
 
-                {/* Feature Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
-                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-6 rounded-2xl backdrop-blur-xl text-center hover:border-blue-500/40 transition-all duration-300 hover:scale-105">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-blue-400">
+                {/* Feature Highlights */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
+                  <div className={`p-4 rounded-xl text-center transition-all duration-300 ${
+                    theme === "light"
+                      ? "bg-white/80 border border-slate-200 hover:border-blue-500/40 shadow-sm backdrop-blur-sm"
+                      : "bg-slate-800/40 border border-slate-700/50 hover:border-blue-500/40"
+                  }`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-3 ${
+                      theme === "light" ? "bg-blue-100" : "bg-blue-500/20"
+                    }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 ${
+                        theme === "light" ? "text-blue-600" : "text-blue-400"
+                      }`}>
                         <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
                       </svg>
                     </div>
-                    <h4 className="text-sm font-semibold text-gray-100 mb-2">Ask Questions</h4>
-                    <p className="text-xs text-slate-400">Chat with AI to analyze your data</p>
+                    <h4 className={`text-sm font-semibold mb-1 ${
+                      theme === "light" ? "text-slate-900" : "text-gray-100"
+                    }`}>Ask Questions</h4>
+                    <p className={`text-xs ${
+                      theme === "light" ? "text-slate-600" : "text-slate-400"
+                    }`}>Chat with AI to analyze data</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-6 rounded-2xl backdrop-blur-xl text-center hover:border-purple-500/40 transition-all duration-300 hover:scale-105">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 flex items-center justify-center mx-auto mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-purple-400">
+                  <div className={`p-4 rounded-xl text-center transition-all duration-300 ${
+                    theme === "light"
+                      ? "bg-white/80 border border-slate-200 hover:border-purple-500/40 shadow-sm backdrop-blur-sm"
+                      : "bg-slate-800/40 border border-slate-700/50 hover:border-purple-500/40"
+                  }`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-3 ${
+                      theme === "light" ? "bg-purple-100" : "bg-purple-500/20"
+                    }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 ${
+                        theme === "light" ? "text-purple-600" : "text-purple-400"
+                      }`}>
                         <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                       </svg>
                     </div>
-                    <h4 className="text-sm font-semibold text-gray-100 mb-2">Generate Graphs</h4>
-                    <p className="text-xs text-slate-400">Get instant visualizations from your queries</p>
+                    <h4 className={`text-sm font-semibold mb-1 ${
+                      theme === "light" ? "text-slate-900" : "text-gray-100"
+                    }`}>Generate Charts</h4>
+                    <p className={`text-xs ${
+                      theme === "light" ? "text-slate-600" : "text-slate-400"
+                    }`}>Get instant visualizations</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 p-6 rounded-2xl backdrop-blur-xl text-center hover:border-emerald-500/40 transition-all duration-300 hover:scale-105">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-emerald-400">
+                  <div className={`p-4 rounded-xl text-center transition-all duration-300 ${
+                    theme === "light"
+                      ? "bg-white/80 border border-slate-200 hover:border-emerald-500/40 shadow-sm backdrop-blur-sm"
+                      : "bg-slate-800/40 border border-slate-700/50 hover:border-emerald-500/40"
+                  }`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-3 ${
+                      theme === "light" ? "bg-emerald-100" : "bg-emerald-500/20"
+                    }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 ${
+                        theme === "light" ? "text-emerald-600" : "text-emerald-400"
+                      }`}>
                         <path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z" />
                       </svg>
                     </div>
-                    <h4 className="text-sm font-semibold text-gray-100 mb-2">Pin Insights</h4>
-                    <p className="text-xs text-slate-400">Save your best visualizations here</p>
+                    <h4 className={`text-sm font-semibold mb-1 ${
+                      theme === "light" ? "text-slate-900" : "text-gray-100"
+                    }`}>Pin Insights</h4>
+                    <p className={`text-xs ${
+                      theme === "light" ? "text-slate-600" : "text-slate-400"
+                    }`}>Save your favorites</p>
                   </div>
                 </div>
 
-                {/* CTA Button */}
+                {/* Enhanced CTA */}
                 <button
                   onClick={() => {
                     const chatInput = document.querySelector('textarea[placeholder*="Ask a question"]') as HTMLTextAreaElement;
@@ -869,12 +912,12 @@ export default function DashboardPage() {
                       chatInput.focus();
                     }
                   }}
-                  className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all duration-200 pressable shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 hover:scale-105 group"
+                  className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 group"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:rotate-12 transition-transform duration-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white">
                     <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
                   </svg>
-                  <span className="text-white font-semibold text-lg">Start Your First Query</span>
+                  <span className="text-white font-semibold">Start Your First Query</span>
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform duration-300">
                     <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
@@ -882,16 +925,33 @@ export default function DashboardPage() {
 
                 {/* Quick Examples */}
                 <div className="text-center space-y-3">
-                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Try asking</p>
+                  <p className={`text-xs uppercase tracking-wider font-medium ${
+                    theme === "light" ? "text-slate-500" : "text-slate-500"
+                  }`}>Try asking</p>
                   <div className="flex flex-wrap justify-center gap-2">
-                    <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
-                      &quot;Show me sales trends&quot;
+                    <span className={`px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                      theme === "light"
+                        ? "bg-slate-100 border border-slate-200 text-slate-700 hover:border-blue-500/50 hover:bg-blue-50"
+                        : "bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:border-blue-500/50"
+                    }`}
+                          onClick={() => setQuestion("Show employee distribution by department")}>
+                      "Employee distribution"
                     </span>
-                    <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
-                      &quot;Top performing products&quot;
+                    <span className={`px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                      theme === "light"
+                        ? "bg-slate-100 border border-slate-200 text-slate-700 hover:border-purple-500/50 hover:bg-purple-50"
+                        : "bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:border-purple-500/50"
+                    }`}
+                          onClick={() => setQuestion("Show inventory levels by product")}>
+                      "Inventory levels"
                     </span>
-                    <span className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
-                      &quot;Revenue by month&quot;
+                    <span className={`px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                      theme === "light"
+                        ? "bg-slate-100 border border-slate-200 text-slate-700 hover:border-emerald-500/50 hover:bg-emerald-50"
+                        : "bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:border-emerald-500/50"
+                    }`}
+                          onClick={() => setQuestion("Display revenue by month")}>
+                      "Revenue by month"
                     </span>
                   </div>
                 </div>
@@ -908,21 +968,35 @@ export default function DashboardPage() {
                   const graphId = graph.graph_id || `fallback-${index}`;
                   
                   return (
-                    <div key={graphId} className="indus-card hover:bg-white/10 transition-all duration-300 group hover-lift animated-bg h-[600px] flex flex-col" style={{ animationDelay: `${index * 0.1}s` }}>
+                    <div key={graphId} className="indus-card group hover-lift animated-bg h-[650px] flex flex-col relative overflow-hidden" style={{ animationDelay: `${index * 0.1}s` }}>
+                      {/* Background gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      
                       {/* Header - Fixed height */}
-                      <div className="flex-shrink-0 p-6 pb-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-400 group-hover:rotate-12 transition-transform">
-                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                              </svg>
+                      <div className="relative flex-shrink-0 p-6 pb-4 z-10">
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center gap-4">
+                            <div className="relative group/icon">
+                              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl blur-sm group-hover/icon:blur-md transition-all duration-300"></div>
+                              <div className={`relative w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border ${
+                                theme === "light" ? "border-blue-600/40" : "border-blue-500/30"
+                              } group-hover/icon:scale-110 transition-transform duration-200`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-6 h-6 ${
+                                  theme === "light" ? "text-blue-700" : "text-blue-400"
+                                } group-hover/icon:rotate-12 transition-transform duration-200`}>
+                                  <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                                </svg>
+                              </div>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="font-semibold text-gray-100 group-hover:text-blue-400 transition-colors truncate">
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <h3 className={`text-lg font-bold group-hover:scale-105 transition-transform duration-200 truncate ${
+                                theme === "light" ? "text-slate-900" : "text-gray-100"
+                              }`}>
                                 {graph.title || `Chart ${index + 1}`}
                               </h3>
-                              <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors truncate">
+                              <p className={`text-sm font-medium truncate ${
+                                theme === "light" ? "text-slate-600" : "text-slate-400"
+                              }`}>
                                 {(graph as any).graph_type || 'Visualization'}
                               </p>
                             </div>
@@ -940,33 +1014,44 @@ export default function DashboardPage() {
                       </div>
                     
                     {/* Content Area - Flexible height */}
-                    <div className="flex-1 px-6 pb-4">
-                      <div className={`h-full rounded-lg flex items-center justify-center overflow-hidden ${
+                    <div className="relative flex-1 px-6 pb-4 z-10">
+                      <div className={`h-full rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:shadow-xl ${
                         theme === "light" 
-                          ? "bg-white/80 border border-slate-200 shadow-sm" 
-                          : "bg-white/5 border border-white/10"
+                          ? "bg-white/90 border border-slate-200 shadow-sm backdrop-blur-sm" 
+                          : "bg-white/5 border border-white/10 backdrop-blur-sm"
                       }`}>
-                        {/* Try enhanced chart renderer first - it can handle figure, data, and other formats */}
-                          <div className="w-full h-full p-4">
-                            <ChartRenderer 
+                        {/* Content background gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        
+                        {/* Chart renderer */}
+                        <div className="relative w-full h-full p-4">
+                          <ChartRenderer 
+                            key={`chart-${graphId}-${index}`}
                             data={(graph as any).data || []} 
-                              type={(graph as any).graph_type || 'bar'} 
-                              title={(graph as any).title || undefined}
+                            type={(graph as any).graph_type || 'bar'} 
+                            title={(graph as any).title || undefined}
                             graph_type={(graph as any).graph_type}
-                              className="w-full h-full"
-                            />
-                          </div>
+                            className="w-full h-full"
+                          />
+                        </div>
                       </div>
                     </div>
                     
                     {/* Footer - Fixed height */}
-                    <div className="flex-shrink-0 px-6 pb-6">
+                    <div className="relative flex-shrink-0 px-6 pb-6 z-10">
                       {graph.description && (
-                        <p className={`text-sm line-clamp-2 leading-relaxed ${
-                          theme === "light" ? "text-slate-600" : "text-neutral-400"
+                        <div className={`relative p-4 rounded-xl transition-all duration-200 hover:shadow-lg ${
+                          theme === "light"
+                            ? "bg-gradient-to-r from-slate-50/90 to-white/90 border border-slate-200"
+                            : "bg-gradient-to-r from-slate-800/50 to-slate-900/50 border border-slate-700/50"
                         }`}>
-                          {graph.description}
-                        </p>
+                          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                          <p className={`relative text-sm line-clamp-2 leading-relaxed font-medium ${
+                            theme === "light" ? "text-slate-700" : "text-neutral-400"
+                          }`}>
+                            {graph.description}
+                          </p>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -980,17 +1065,30 @@ export default function DashboardPage() {
 
       {/* Enhanced Fixed Right Chat Panel - Full Height */}
       <div className="dashboard-chat-panel w-full indus-card chat-panel border-t lg:border-t-0 lg:border-l border-white/10 slide-in-right">
-        <div className="flex-shrink-0 p-6 border-b border-white/10 bg-white/5">
+        <div className={`flex-shrink-0 p-6 border-b ${
+          theme === "light" 
+            ? "border-slate-200 bg-gradient-to-r from-white/90 to-slate-50/90 backdrop-blur-sm" 
+            : "border-white/10 bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-sm"
+        }`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 hover-scale group">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:rotate-12 transition-transform">
-                  <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
-                </svg>
+            <div className="flex items-center gap-4">
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 rounded-full blur-lg group-hover:blur-xl transition-all duration-300"></div>
+                <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 hover-scale">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:rotate-12 transition-transform duration-300">
+                    <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
+                  </svg>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent">AI Chat</h2>
-                <div className="w-6 h-0.5 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
+              <div className="space-y-1">
+                <h2 className={`text-xl font-bold ${
+                  theme === "light"
+                    ? "bg-gradient-to-r from-slate-900 via-blue-800 to-purple-800 bg-clip-text text-transparent"
+                    : "bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent"
+                }`}>AI Chat</h2>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-0.5 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1111,22 +1209,47 @@ export default function DashboardPage() {
         )}
         
         {/* Chat Messages */}
-        <div ref={messagesRef} className="chat-messages p-4 space-y-4 compact-scrollbar" key={chatKey}>
+        <div ref={messagesRef} className="chat-messages p-6 space-y-6 compact-scrollbar" key={chatKey}>
           {chat.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-6 indus-glow">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-10 h-10 text-primary">
-                  <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
-                </svg>
+              <div className="relative mb-8">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/30 to-purple-600/30 rounded-3xl blur-2xl"></div>
+                <div className={`relative w-24 h-24 rounded-3xl flex items-center justify-center ${
+                  theme === "light"
+                    ? "bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-200"
+                    : "bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30"
+                } indus-glow`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-12 h-12 ${
+                    theme === "light" ? "text-blue-600" : "text-blue-400"
+                  }`}>
+                    <path d="M18 5.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 2 5.5v6A2.5 2.5 0 0 0 4.5 14H6v2.25c0 .42.47.66.82.42L10.5 14H15.5A2.5 2.5 0 0 0 18 11.5v-6Z" />
+                  </svg>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-white mb-3">Welcome to AI Analytics</h3>
-              <p className="text-neutral-400 text-sm max-w-sm leading-relaxed mb-6">
+              <h3 className={`text-2xl font-bold mb-4 ${
+                theme === "light" ? "text-slate-900" : "text-white"
+              }`}>Welcome to AI Analytics</h3>
+              <p className={`text-sm max-w-sm leading-relaxed mb-8 ${
+                theme === "light" ? "text-slate-600" : "text-slate-400"
+              }`}>
                 Ask questions about your data and get instant insights with AI-powered analysis.
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                <span className="px-3 py-1.5 bg-white/5 rounded-lg text-xs text-neutral-300 font-medium">Data Analysis</span>
-                <span className="px-3 py-1.5 bg-white/5 rounded-lg text-xs text-neutral-300 font-medium">Charts & Graphs</span>
-                <span className="px-3 py-1.5 bg-white/5 rounded-lg text-xs text-neutral-300 font-medium">Real-time Insights</span>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <span className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 ${
+                  theme === "light"
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "bg-white/10 text-slate-300 border border-white/20"
+                }`}>Data Analysis</span>
+                <span className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 ${
+                  theme === "light"
+                    ? "bg-purple-50 text-purple-700 border border-purple-200"
+                    : "bg-white/10 text-slate-300 border border-white/20"
+                }`}>Charts & Graphs</span>
+                <span className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 ${
+                  theme === "light"
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-white/10 text-slate-300 border border-white/20"
+                }`}>Real-time Insights</span>
               </div>
             </div>
           ) : (
@@ -1135,9 +1258,20 @@ export default function DashboardPage() {
                 <div className={`max-w-[80%] ${item.role === "user" ? "ml-12" : "mr-12"}`}>
                   {/* User Message */}
                   {item.role === "user" ? (
-                    <div className="bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-2xl px-5 py-3.5 shadow-xl max-w-[85%]">
-                      <div className="text-[15px] leading-relaxed font-medium">
-                        <HTMLRender html={item.text || ""} isTextContent={true} />
+                    <div className="relative group">
+                      <div className={`absolute inset-0 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-300 ${
+                        theme === "light"
+                          ? "bg-gradient-to-br from-blue-500/30 to-purple-500/30"
+                          : "bg-gradient-to-br from-blue-600/20 to-purple-600/20"
+                      }`}></div>
+                      <div className={`relative rounded-2xl px-6 py-4 shadow-xl max-w-[85%] hover:shadow-2xl transition-all duration-200 hover:scale-[1.02] ${
+                        theme === "light"
+                          ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white border-2 border-blue-500/20"
+                          : "bg-gradient-to-br from-blue-600 to-purple-600 text-white"
+                      }`}>
+                        <div className="text-[15px] leading-relaxed font-medium">
+                          <HTMLRender html={item.text || ""} isTextContent={true} />
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -1145,33 +1279,38 @@ export default function DashboardPage() {
                     <div className="space-y-3 max-w-[95%]">
                       {/* Message Content - Show text only if there are no graphs */}
                       {item.text && item.text.trim() && (!item.graphs || item.graphs.length === 0) && (
-                        <div className={`rounded-2xl px-5 py-3.5 backdrop-blur-md shadow-xl ${
-                          theme === "light"
-                            ? "bg-slate-50 border-2 border-slate-300"
-                            : "bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/50"
-                        }`}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className={`text-[15px] leading-relaxed flex-1 font-normal ${
-                              theme === "light" ? "text-slate-900" : "text-gray-100"
-                            }`}>
-                              <HTMLRender html={item.text} isTextContent={true} />
+                        <div className="relative group">
+                          <div className={`absolute inset-0 rounded-2xl backdrop-blur-md shadow-xl transition-all duration-200 ${
+                            theme === "light"
+                              ? "bg-gradient-to-br from-slate-50/90 to-white/90 border-2 border-slate-200"
+                              : "bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/50"
+                          }`}>
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-2xl group-hover:from-blue-500/10 group-hover:to-purple-500/10 transition-all duration-300"></div>
+                          </div>
+                          <div className="relative px-6 py-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className={`text-[15px] leading-relaxed flex-1 font-normal ${
+                                theme === "light" ? "text-slate-900" : "text-gray-100"
+                              }`}>
+                                <HTMLRender html={item.text} isTextContent={true} />
+                              </div>
+                              {isVoiceEnabled && (
+                                <button
+                                  onClick={() => speakResponse(item.text || "")}
+                                  className={`p-2 rounded-xl transition-all duration-200 flex-shrink-0 hover:scale-110 ${
+                                    theme === "light"
+                                      ? "text-slate-600 hover:text-emerald-700 hover:bg-emerald-100 border border-slate-200"
+                                      : "text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                  }`}
+                                  title="Speak response"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <path d="M10 2a.75.75 0 01.75.75v14.5a.75.75 0 01-1.5 0V2.75A.75.75 0 0110 2z" />
+                                    <path d="M6.5 6.5a.75.75 0 00-1.5 0v7a.75.75 0 001.5 0v-7zM13.5 6.5a.75.75 0 00-1.5 0v7a.75.75 0 001.5 0v-7z" />
+                                  </svg>
+                                </button>
+                              )}
                             </div>
-                            {isVoiceEnabled && (
-                              <button
-                                onClick={() => speakResponse(item.text || "")}
-                                className={`p-1.5 rounded-lg transition-all duration-200 flex-shrink-0 ${
-                                  theme === "light"
-                                    ? "text-slate-600 hover:text-emerald-700 hover:bg-emerald-100 border border-slate-200"
-                                    : "text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10"
-                                }`}
-                                title="Speak response"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                  <path d="M10 2a.75.75 0 01.75.75v14.5a.75.75 0 01-1.5 0V2.75A.75.75 0 0110 2z" />
-                                  <path d="M6.5 6.5a.75.75 0 00-1.5 0v7a.75.75 0 001.5 0v-7zM13.5 6.5a.75.75 0 00-1.5 0v7a.75.75 0 001.5 0v-7z" />
-                                </svg>
-                              </button>
-                            )}
                           </div>
                         </div>
                       )}
@@ -1180,35 +1319,40 @@ export default function DashboardPage() {
                       {item.graphs && item.graphs.length > 0 && (
                         <div className="space-y-3">
                           {item.graphs.map((graph, j) => (
-                            <div key={j} className={`rounded-2xl overflow-hidden backdrop-blur-md shadow-2xl ${
+                            <div key={j} className={`relative group rounded-2xl overflow-hidden backdrop-blur-md shadow-2xl transition-all duration-200 hover:shadow-3xl hover:scale-[1.01] ${
                               theme === "light"
                                 ? "bg-white border-2 border-slate-300"
                                 : "bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-slate-700/60"
                             }`}>
+                              {/* Background glow effect */}
+                              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                               {/* Graph Header */}
-                              <div className={`flex items-center justify-between p-4 border-b ${
+                              <div className={`relative flex items-center justify-between p-5 border-b ${
                                 theme === "light"
-                                  ? "border-slate-200 bg-gradient-to-r from-slate-50 to-transparent"
-                                  : "border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-transparent"
+                                  ? "border-slate-200 bg-gradient-to-r from-slate-50/90 to-white/90"
+                                  : "border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-900/50"
                               }`}>
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border ${
-                                    theme === "light" ? "border-blue-600/40" : "border-blue-500/30"
-                                  }`}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 ${
-                                      theme === "light" ? "text-blue-700" : "text-blue-400"
-                                    }`}>
-                                      <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                                    </svg>
+                                <div className="flex items-center gap-4">
+                                  <div className="relative group/icon">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl blur-sm group-hover/icon:blur-md transition-all duration-300"></div>
+                                    <div className={`relative w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border ${
+                                      theme === "light" ? "border-blue-600/40" : "border-blue-500/30"
+                                    } group-hover/icon:scale-110 transition-transform duration-200`}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-6 h-6 ${
+                                        theme === "light" ? "text-blue-700" : "text-blue-400"
+                                      }`}>
+                                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                                      </svg>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <span className={`text-[15px] font-semibold ${
+                                  <div className="space-y-1">
+                                    <span className={`text-[16px] font-bold ${
                                       theme === "light" ? "text-slate-900" : "text-gray-100"
                                     }`}>
                                       {item.userQuestion || graph.title || `Chart ${j + 1}`}
                                     </span>
-                                    <p className={`text-xs font-medium mt-0.5 ${
-                                      theme === "light" ? "text-slate-700" : "text-slate-400"
+                                    <p className={`text-sm font-medium ${
+                                      theme === "light" ? "text-slate-600" : "text-slate-400"
                                     }`}>
                                       {(graph as any).graph_type || 'Data visualization'}
                                     </p>
@@ -1216,7 +1360,6 @@ export default function DashboardPage() {
                                 </div>
                                 <button
                                   onClick={async (event) => {
-                                    console.log('📌 Pinning chart to dashboard...');
                                     try {
                                       // Create a new graph item with the chart data directly
                                       const newGraph: any = {
@@ -1228,17 +1371,16 @@ export default function DashboardPage() {
                                       };
                                       
                                       setGraphs((prev: any) => [...prev, newGraph]);
-                                      console.log('✅ Chart added to dashboard:', newGraph);
                                       showSuccess("Chart pinned to dashboard!");
                                     } catch (error) {
                                       console.error('❌ Failed to pin chart:', error);
                                       showSuccess("Failed to pin chart. Please try again.");
                                     }
                                   }}
-                                  className="inline-flex items-center gap-1.5 text-xs rounded-lg border border-primary/50 bg-primary/20 px-3 py-1.5 text-white font-medium hover:bg-primary/30 hover:border-primary/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed pressable shadow-sm"
+                                  className="inline-flex items-center gap-2 text-sm rounded-xl border border-primary/50 bg-primary/20 px-4 py-2.5 text-white font-semibold hover:bg-primary/30 hover:border-primary/60 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed pressable shadow-sm hover:scale-105 group/btn"
                                   title="Pin chart to dashboard"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover/btn:rotate-12 transition-transform duration-200">
                                     <path fillRule="evenodd" d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" clipRule="evenodd" />
                                     <path fillRule="evenodd" d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" clipRule="evenodd" />
                                   </svg>
@@ -1247,16 +1389,16 @@ export default function DashboardPage() {
                               </div>
                               
                               {/* Graph Content */}
-                              <div className="p-4 min-h-[300px]">
+                              <div className="relative p-6 min-h-[320px]">
                                 {/* Render copied charts with HTML content directly */}
                                 {(graph as any).graph_type === 'copied_chart' && (graph as any).html_content ? (
                                   <div 
-                                    className="w-full h-full min-h-[300px]"
+                                    className="w-full h-full min-h-[300px] rounded-xl overflow-hidden"
                                     dangerouslySetInnerHTML={{ __html: (graph as any).html_content }}
                                   />
                                 ) : (
                                   /* Use enhanced chart renderer for other graphs */
-                                  <div className="w-full h-[300px] min-h-[300px]">
+                                  <div className="w-full h-[300px] min-h-[300px] rounded-xl overflow-hidden">
                                     <ChartRenderer 
                                       data={(graph as any).data || []} 
                                       type={(graph as any).graph_type || 'bar'} 
@@ -1271,15 +1413,30 @@ export default function DashboardPage() {
                               
                               {/* Graph Insight */}
                               {graph.insight && (
-                                <div className="px-4 pb-4">
-                                  <div className="p-4 bg-gradient-to-r from-blue-500/15 to-purple-500/15 rounded-xl border border-blue-500/30 shadow-lg backdrop-blur-sm">
-                                    <div className="flex items-start gap-3">
-                                      <div className="flex-shrink-0 mt-0.5">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-400">
-                                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                        </svg>
+                                <div className="px-6 pb-6">
+                                  <div className={`relative p-5 rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl ${
+                                    theme === "light"
+                                      ? "bg-gradient-to-r from-blue-50/90 to-purple-50/90 border-blue-200"
+                                      : "bg-gradient-to-r from-blue-500/15 to-purple-500/15 border-blue-500/30"
+                                  }`}>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                                    <div className="relative flex items-start gap-4">
+                                      <div className="flex-shrink-0 mt-1">
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                          theme === "light"
+                                            ? "bg-blue-100 border border-blue-200"
+                                            : "bg-blue-500/20 border border-blue-500/30"
+                                        }`}>
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 ${
+                                            theme === "light" ? "text-blue-600" : "text-blue-400"
+                                          }`}>
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                          </svg>
+                                        </div>
                                       </div>
-                                      <p className="text-[14px] text-gray-100 leading-relaxed font-medium">{graph.insight}</p>
+                                      <p className={`text-[15px] leading-relaxed font-medium ${
+                                        theme === "light" ? "text-slate-800" : "text-gray-100"
+                                      }`}>{graph.insight}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -1311,14 +1468,26 @@ export default function DashboardPage() {
 
           {isAwaitingAnswer && (
             <div className="flex justify-start">
-              <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/60 rounded-2xl px-5 py-3.5 backdrop-blur-md mr-12 shadow-xl">
+              <div className={`rounded-2xl px-5 py-3.5 backdrop-blur-md mr-12 shadow-xl ${
+                theme === "light"
+                  ? "bg-gradient-to-br from-slate-50/95 to-white/95 border-2 border-slate-200"
+                  : "bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/60"
+              }`}>
                 <div className="flex items-center gap-3">
                   <div className="flex space-x-1.5">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      theme === "light" ? "bg-blue-500" : "bg-blue-400"
+                    }`} style={{ animationDelay: '0ms' }} />
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      theme === "light" ? "bg-purple-500" : "bg-purple-400"
+                    }`} style={{ animationDelay: '150ms' }} />
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      theme === "light" ? "bg-blue-500" : "bg-blue-400"
+                    }`} style={{ animationDelay: '300ms' }} />
                   </div>
-                  <span className="text-[15px] text-gray-100 font-medium">Analyzing your data...</span>
+                  <span className={`text-[15px] font-medium ${
+                    theme === "light" ? "text-slate-800" : "text-gray-100"
+                  }`}>Analyzing your data...</span>
                 </div>
               </div>
             </div>
@@ -1341,14 +1510,17 @@ export default function DashboardPage() {
         </div>
 
         {/* Enhanced Chat Input */}
-        <div className={`flex-shrink-0 p-4 border-t backdrop-blur-md ${
+        <div className={`flex-shrink-0 p-6 border-t backdrop-blur-md ${
           theme === "light"
-            ? "border-slate-300 bg-gradient-to-b from-slate-50/90 to-white/95 shadow-lg"
-            : "border-slate-700/50 bg-gradient-to-b from-slate-900/80 to-slate-950/90"
+            ? "border-slate-200 bg-gradient-to-b from-white/95 to-slate-50/95 shadow-lg"
+            : "border-slate-700/50 bg-gradient-to-b from-slate-900/90 to-slate-950/95"
         }`}>
-          <form onSubmit={onAsk} className="space-y-3">
-            <div className="flex items-end gap-3">
+          <form onSubmit={onAsk} className="space-y-4">
+            <div className="flex items-end gap-4">
               <div className="flex-1 relative group">
+                {/* Input background glow */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
+                
                 <textarea
                   value={question}
                   onChange={(e) => {
@@ -1362,15 +1534,15 @@ export default function DashboardPage() {
                     }
                   }}
                   placeholder="Ask a question about your data..."
-                  className={`w-full px-5 py-3.5 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 pr-12 text-[15px] resize-none min-h-[52px] max-h-32 group-hover:border-blue-500/30 no-scrollbar font-normal ${
+                  className={`relative w-full px-6 py-4 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 pr-14 text-[15px] resize-none min-h-[56px] max-h-32 group-hover:border-blue-500/30 no-scrollbar font-normal ${
                     theme === "light"
-                      ? "bg-white border-2 border-slate-300 text-slate-900 placeholder-slate-500 hover:border-blue-500 shadow-sm"
-                      : "bg-slate-800/60 border-slate-700/60 text-gray-100 placeholder-slate-400 hover:bg-slate-800/80"
+                      ? "bg-white/95 border-2 border-slate-300 text-slate-900 placeholder-slate-500 hover:border-blue-500 shadow-sm backdrop-blur-sm"
+                      : "bg-slate-800/80 border-slate-700/60 text-gray-100 placeholder-slate-400 hover:bg-slate-800/90 backdrop-blur-sm"
                   }`}
                   rows={1}
                   style={{
                     height: 'auto',
-                    minHeight: '52px',
+                    minHeight: '56px',
                     maxHeight: '128px'
                   }}
                   onInput={(e) => {
@@ -1379,23 +1551,29 @@ export default function DashboardPage() {
                     target.style.height = Math.min(target.scrollHeight, 128) + 'px';
                   }}
                 />
-                <div className="absolute right-4 bottom-4 group-hover:scale-110 transition-transform">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 group-hover:text-blue-600 transition-colors ${
+                
+                {/* Search icon */}
+                <div className="absolute right-5 bottom-5 group-hover:scale-110 transition-transform duration-200">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 group-hover:text-blue-600 transition-colors duration-200 ${
                     theme === "light" ? "text-slate-500" : "text-slate-500"
                   }`}>
                     <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                   </svg>
                 </div>
               </div>
+              
               <button
                 type="submit"
                 disabled={!question.trim() || isAwaitingAnswer}
-                className="inline-flex items-center justify-center w-[52px] h-[52px] rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 disabled:opacity-40 disabled:cursor-not-allowed hover:from-blue-500 hover:to-purple-500 transition-all duration-200 shadow-lg shadow-blue-500/20 pressable hover-scale group"
+                className="relative inline-flex items-center justify-center w-[56px] h-[56px] rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 disabled:opacity-40 disabled:cursor-not-allowed hover:from-blue-500 hover:to-purple-500 transition-all duration-200 shadow-lg shadow-blue-500/20 pressable hover-scale group"
               >
+                {/* Button glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                
                 {isAwaitingAnswer ? (
-                  <div className="w-5 h-5 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
+                  <div className="relative w-6 h-6 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="relative w-6 h-6 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200">
                     <path d="M10.894 2.553a1 1 0 0 0-1.788 0l-7 14a1 1 0 0 0 1.169 1.409l5-1.429A1 1 0 0 0 9 15.571V11a1 1 0 1 1 2 0v4.571a1 1 0 0 0 .725.962l5 1.428a1 1 0 0 0 1.17-1.408l-7-14Z" />
                   </svg>
                 )}
@@ -1403,69 +1581,107 @@ export default function DashboardPage() {
             </div>
             
             {/* Enhanced Quick Actions */}
-            <div className="flex flex-wrap gap-2 no-scrollbar">
+            <div className="flex flex-wrap gap-3 no-scrollbar">
               <button
                 type="button"
-                onClick={() => setQuestion("Show me sales trends for the last quarter")}
-                className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
+                onClick={() => setQuestion("Show employee distribution by department")}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 pressable hover-scale group ${
                   theme === "light"
-                    ? "bg-slate-50 border-slate-300 hover:bg-blue-50 hover:border-blue-500 text-slate-700 hover:text-blue-800 shadow-sm"
-                    : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-blue-500/30 text-slate-300 hover:text-gray-100"
+                    ? "bg-white/80 border border-slate-200 hover:bg-blue-50 hover:border-blue-300 text-slate-600 hover:text-blue-700 shadow-sm backdrop-blur-sm"
+                    : "bg-white/10 border border-white/20 hover:bg-blue-500/20 hover:border-blue-500/50 text-slate-300 hover:text-blue-300 backdrop-blur-sm"
                 }`}
+                title="Analyze employee data"
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Sales Trends</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:scale-110 transition-transform duration-200">
+                  <path d="M7 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM14.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM1.615 16.428a1.224 1.224 0 0 1-.569-1.175 6.002 6.002 0 0 1 11.908 0c.058.467-.172.92-.57 1.174A9.953 9.953 0 0 1 7 18a9.953 9.953 0 0 1-5.385-1.572ZM14.5 16h-.106c.07-.297.084-.642.025-.988A5.477 5.477 0 0 0 12.5 11.5a5.477 5.477 0 0 0-2.021 3.512c.059.346.045.691.025.988h-.106a2.5 2.5 0 0 1 0-5Z" />
+                </svg>
+                <span>Employee Data</span>
               </button>
+              
               <button
                 type="button"
-                onClick={() => setQuestion("What are the top performing products?")}
-                className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
+                onClick={() => setQuestion("Show inventory levels by product")}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 pressable hover-scale group ${
                   theme === "light"
-                    ? "bg-slate-50 border-slate-300 hover:bg-purple-50 hover:border-purple-500 text-slate-700 hover:text-purple-800 shadow-sm"
-                    : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-purple-500/30 text-slate-300 hover:text-gray-100"
+                    ? "bg-white/80 border border-slate-200 hover:bg-purple-50 hover:border-purple-300 text-slate-600 hover:text-purple-700 shadow-sm backdrop-blur-sm"
+                    : "bg-white/10 border border-white/20 hover:bg-purple-500/20 hover:border-purple-500/50 text-slate-300 hover:text-purple-300 backdrop-blur-sm"
                 }`}
+                title="Check inventory levels"
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Top Products</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:scale-110 transition-transform duration-200">
+                  <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
+                </svg>
+                <span>Inventory Levels</span>
               </button>
+              
               <button
                 type="button"
-                onClick={() => setQuestion("Create a pie chart of customer segments")}
-                className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
+                onClick={() => setQuestion("Show me sales distribution by category")}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 pressable hover-scale group ${
                   theme === "light"
-                    ? "bg-slate-50 border-slate-300 hover:bg-teal-50 hover:border-teal-500 text-slate-700 hover:text-teal-800 shadow-sm"
-                    : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-teal-500/30 text-slate-300 hover:text-gray-100"
+                    ? "bg-white/80 border border-slate-200 hover:bg-teal-50 hover:border-teal-300 text-slate-600 hover:text-teal-700 shadow-sm backdrop-blur-sm"
+                    : "bg-white/10 border border-white/20 hover:bg-teal-500/20 hover:border-teal-500/50 text-slate-300 hover:text-teal-300 backdrop-blur-sm"
                 }`}
+                title="Analyze sales by category"
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Customer Segments</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:scale-110 transition-transform duration-200">
+                  <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                </svg>
+                <span>Sales by Category</span>
               </button>
+              
               <button
                 type="button"
-                onClick={() => setQuestion("Show revenue by month")}
-                className={`px-3.5 py-2 text-[13px] border rounded-xl transition-all duration-200 font-medium pressable hover-scale group ${
+                onClick={() => setQuestion("Display revenue by month")}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 pressable hover-scale group ${
                   theme === "light"
-                    ? "bg-slate-50 border-slate-300 hover:bg-emerald-50 hover:border-emerald-500 text-slate-700 hover:text-emerald-800 shadow-sm"
-                    : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/40 hover:border-emerald-500/30 text-slate-300 hover:text-gray-100"
+                    ? "bg-white/80 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 text-slate-600 hover:text-emerald-700 shadow-sm backdrop-blur-sm"
+                    : "bg-white/10 border border-white/20 hover:bg-emerald-500/20 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 backdrop-blur-sm"
                 }`}
+                title="View monthly revenue"
               >
-                <span className="group-hover:translate-x-0.5 transition-transform inline-block">Revenue Analysis</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 group-hover:scale-110 transition-transform duration-200">
+                  <path fillRule="evenodd" d="M10 1a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 1zM5.05 3.05a.75.75 0 010 1.06L3.81 5.3a.75.75 0 01-1.06-1.06l1.24-1.24a.75.75 0 011.06 0zm9.9 0a.75.75 0 011.06 0l1.24 1.24a.75.75 0 11-1.06 1.06L14.95 4.11a.75.75 0 010-1.06zM3 10a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5A.75.75 0 013 10zm11 0a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5A.75.75 0 0114 10zm-6.05 4.95a.75.75 0 010 1.06l-1.24 1.24a.75.75 0 11-1.06-1.06l1.24-1.24a.75.75 0 011.06 0zm4.1 0a.75.75 0 011.06 0l1.24 1.24a.75.75 0 11-1.06 1.06l-1.24-1.24a.75.75 0 010-1.06z" clipRule="evenodd" />
+                </svg>
+                <span>Revenue Analysis</span>
               </button>
             </div>
           </form>
           
           {error && (
-            <div className={`mt-3 p-4 rounded-xl backdrop-blur-sm shadow-lg ${
+            <div className={`mt-4 p-4 rounded-xl backdrop-blur-sm shadow-lg border transition-all duration-200 ${
               theme === "light"
-                ? "bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300"
-                : "bg-gradient-to-r from-red-500/15 to-red-600/15 border border-red-500/30"
+                ? "bg-red-50/90 border-red-200 text-red-800"
+                : "bg-red-500/10 border-red-500/30 text-red-300"
             }`}>
               <div className="flex items-center gap-3">
-                <div className="flex-shrink-0">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  theme === "light"
+                    ? "bg-red-100 border border-red-200"
+                    : "bg-red-500/20 border border-red-500/30"
+                }`}>
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 ${
                     theme === "light" ? "text-red-600" : "text-red-400"
                   }`}>
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00.867.5 1 1 0 110 2A1 1 0 0010 7a1 1 0 00-.867-.5 1 1 0 110-2zM10 9a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <p className={`text-[14px] font-medium flex-1 ${theme === "light" ? "text-red-800" : "text-red-300"}`}>{error}</p>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{error}</p>
+                </div>
+                <button
+                  onClick={() => setError(null)}
+                  className={`p-1.5 rounded-lg transition-all duration-200 hover:scale-110 ${
+                    theme === "light"
+                      ? "text-red-600 hover:bg-red-100"
+                      : "text-red-400 hover:bg-red-500/20"
+                  }`}
+                  title="Dismiss error"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                  </svg>
+                </button>
               </div>
             </div>
           )}
@@ -1644,14 +1860,20 @@ function ChatHistoryPanel({
 }
 
 function ChatHistoryButton({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  const { theme } = useTheme();
+  
   return (
     <button
       type="button"
       onClick={onToggle}
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium pressable ${
+      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 pressable hover-scale ${
         isOpen 
-            ? "bg-white/20 text-white border border-white/30" 
-            : "bg-white/10 text-white/80 hover:bg-white/15 border border-white/20"
+          ? theme === "light"
+            ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
+            : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+          : theme === "light"
+            ? "bg-white/80 text-slate-600 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 shadow-sm"
+            : "bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white border border-white/20"
       }`}
       title="View chat history"
     >
@@ -1664,17 +1886,23 @@ function ChatHistoryButton({ isOpen, onToggle }: { isOpen: boolean; onToggle: ()
 }
 
 function NewChatButton({ onNew }: { onNew: () => void }) {
+  const { theme } = useTheme();
+  
   return (
     <button
       type="button"
       onClick={onNew}
-      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-4 py-2 text-xs font-semibold pressable shadow-lg shadow-blue-500/30 transition-all duration-200 hover:scale-105"
+      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 pressable hover-scale group ${
+        theme === "light"
+          ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/30"
+          : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/30"
+      }`}
       title="Start a new chat"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white group-hover:rotate-90 transition-transform duration-200">
         <path d="M9 3.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 9 3.5Z" />
       </svg>
-      <span className="text-white">New chat</span>
+      <span className="text-white">New Chat</span>
     </button>
   );
 }

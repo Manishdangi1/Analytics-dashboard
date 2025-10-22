@@ -151,6 +151,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
     const firstItem = data[0];
     const allKeys = Object.keys(firstItem);
     
+    
     // Comprehensive X-axis key detection (categorical data)
     const xAxisKeys = [
       'outlet_name', 'item_name', 'category_name', 'product_name', 'employee_name',
@@ -200,14 +201,6 @@ export default function ChartRenderer({ data, type, title, className = "", graph
       [yAxisKey]: typeof item[yAxisKey] === 'number' ? item[yAxisKey] : (typeof item[yAxisKey] === 'string' ? parseFloat(item[yAxisKey]) || 0 : 0)
     }));
     
-    console.log('🔄 Data transformation:', {
-      originalKeys: allKeys,
-      xAxisKey,
-      yAxisKey,
-      sampleItem: firstItem,
-      transformedSample: transformedData[0],
-      allValues: transformedData.map(item => ({ [xAxisKey]: item[xAxisKey], [yAxisKey]: item[yAxisKey] })).slice(0, 3)
-    });
     
     return { data: transformedData, xAxisKey, yAxisKey };
   };
@@ -253,13 +246,10 @@ export default function ChartRenderer({ data, type, title, className = "", graph
     const { data: transformedData, xAxisKey, yAxisKey } = transformDataForChart(data);
     const chartType = graph_type || type;
     
-    console.log('📊 Chart rendering with transformed data:', {
-      chartType,
-      xAxisKey,
-      yAxisKey,
-      dataLength: transformedData.length,
-      sampleData: transformedData.slice(0, 2)
-    });
+    
+    // Create a unique key for the chart to force re-render when data changes
+    const chartKey = `${title}-${JSON.stringify(transformedData.slice(0, 2))}`;
+    
 
     switch (chartType.toLowerCase()) {
       case 'bar':
@@ -269,7 +259,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
       case 'grouped_bar':
       case 'grouped_bar_chart':
         return (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer key={chartKey} width="100%" height="100%">
             <BarChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} opacity={0.2} />
               <XAxis 
@@ -340,7 +330,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
       case 'linechart':
       case 'line_chart':
         return (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer key={chartKey} width="100%" height="100%">
             <LineChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} opacity={0.2} />
               <XAxis 
@@ -426,7 +416,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
       case 'donut':
       case 'donutchart':
         return (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer key={chartKey} width="100%" height="100%">
             <PieChart>
               <Pie
                 data={transformedData}
@@ -447,7 +437,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                   filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
                 }}
               >
-                {data.map((entry: any, index: number) => (
+                {transformedData.map((entry: any, index: number) => (
                   <Cell 
                     key={`cell-${index}`} 
                     fill={`url(#pieGradient-${index})`}
@@ -479,6 +469,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                 verticalAlign="bottom" 
                 height={40}
                 iconType="circle"
+                formatter={(value, entry) => [(entry.payload as any)?.[xAxisKey] || value, value]}
                 wrapperStyle={{ 
                   fontSize: '12px', 
                   fontWeight: '600',
@@ -487,7 +478,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
                 }}
               />
               <defs>
-                {data.map((entry: any, index: number) => (
+                {transformedData.map((entry: any, index: number) => (
                   <linearGradient key={`pieGradient-${index}`} id={`pieGradient-${index}`} x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0%" stopColor={themeColors.colors[index % themeColors.colors.length]} stopOpacity={1}/>
                     <stop offset="50%" stopColor={themeColors.colors[(index + 1) % themeColors.colors.length]} stopOpacity={0.9}/>
@@ -505,7 +496,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
       case 'stackedarea':
       case 'stacked_area':
         return (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer key={chartKey} width="100%" height="100%">
             <AreaChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} opacity={0.2} />
               <XAxis 
@@ -590,9 +581,8 @@ export default function ChartRenderer({ data, type, title, className = "", graph
         
         // If it's revenue data with multiple data points, always render as a proper chart
         if (isRevenueData && data.length > 1) {
-          console.log('📊 Rendering Revenue Data as Line Chart with:', { data, xAxisKey, yAxisKey, title });
           return (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer key={chartKey} width="100%" height="100%">
               <LineChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} opacity={0.2} />
                 <XAxis 
@@ -653,13 +643,32 @@ export default function ChartRenderer({ data, type, title, className = "", graph
             const revenueValue = data[0][yAxisKey] || data[0]['revenue'] || data[0]['amount'] || data[0]['value'] || value;
             const revenueLabel = data[0][xAxisKey] || 'Revenue';
             
-            // Find the count field (like "8") to show as months
-            const countField = Object.keys(data[0]).find(key => 
-              typeof data[0][key] === 'number' && 
-              data[0][key] > 0 && 
-              data[0][key] < 100 && 
-              !['revenue', 'amount', 'value', 'total', 'sum'].some(rev => key.toLowerCase().includes(rev))
-            );
+            // Find the count field (like "8") to show as months - be more specific about what constitutes a month count
+            const countField = Object.keys(data[0]).find(key => {
+              const value = data[0][key];
+              const keyLower = key.toLowerCase();
+              
+              // Only consider fields that explicitly indicate duration/count, not specific month numbers
+              const isDurationRelated = ['months', 'periods', 'count', 'duration', 'span', 'length', 'total_months', 'month_count'].some(durationWord => 
+                keyLower.includes(durationWord)
+              );
+              
+              // Exclude fields that represent specific months, years, or other non-duration values
+              const isExcluded = [
+                'id', 'index', 'rank', 'order', 'position', 'revenue', 'amount', 'value', 'total', 'sum', 'price', 'cost',
+                'month', 'year', 'day', 'date', 'sales_month', 'revenue_month', 'period_month' // These represent specific time points, not durations
+              ].some(excludeWord => 
+                keyLower.includes(excludeWord)
+              );
+              
+              const matches = typeof value === 'number' && 
+                     value > 0 && 
+                     value < 100 && 
+                     isDurationRelated && 
+                     !isExcluded;
+              
+              return matches;
+            });
             const monthCount = countField ? data[0][countField] : null;
             
             return (
@@ -699,7 +708,6 @@ export default function ChartRenderer({ data, type, title, className = "", graph
           );
         } else {
           // For multiple data points, use an animated bar chart
-          console.log('📊 Rendering Summary Card as Animated BarChart with:', { data, xAxisKey, yAxisKey, themeColors });
           
           // For revenue data with multiple points, show a proper bar chart
           const isRevenueData = title?.toLowerCase().includes('revenue') || 
@@ -707,7 +715,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
           
           if (isRevenueData) {
             return (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer key={chartKey} width="100%" height="100%">
                 <BarChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} opacity={0.2} />
                 <XAxis 
@@ -762,7 +770,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
           
           // Default bar chart for other data
           return (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer key={chartKey} width="100%" height="100%">
               <BarChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} opacity={0.2} />
                 <XAxis 
@@ -823,8 +831,6 @@ export default function ChartRenderer({ data, type, title, className = "", graph
         }
 
       default:
-        console.log('⚠️ Unsupported chart type, falling back to bar chart:', chartType);
-        console.log('🔍 Fallback data:', { data, xAxisKey, yAxisKey });
         
         // Simple fallback that will definitely render
         if (data.length === 0) {
@@ -836,7 +842,7 @@ export default function ChartRenderer({ data, type, title, className = "", graph
         }
         
         return (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer key={chartKey} width="100%" height="100%">
             <BarChart data={transformedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={themeColors.grid} />
               <XAxis 
