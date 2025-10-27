@@ -4,7 +4,7 @@ import axios from "axios";
 
 // Create a separate API client for LiveKit calls that uses LiveKit agent credentials
 const livekitApi = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "",
+  baseURL: typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_API_URL || "",
 });
 
 // Add LiveKit agent authentication
