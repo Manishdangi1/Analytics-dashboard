@@ -532,14 +532,14 @@ export default function DashboardPage() {
 
   return (
     <ErrorBoundary>
-      <div className={`dashboard-container flex flex-col lg:flex-row ${
+      <div className={`dashboard-container flex flex-col lg:flex-row w-full min-h-screen ${
         theme === "light" 
           ? "bg-gradient-to-br from-white via-slate-50 to-gray-100" 
           : "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
       }`}>
       {/* Main Content Area - Left Side */}
-      <div className="dashboard-main-content lg:max-w-[calc(100%-600px)]">
-        <div className="dashboard-content p-6 space-y-6 auto-hide-scrollbar scroll-smooth">
+      <div className="w-full lg:w-auto lg:flex-1 lg:max-w-[calc(100%-600px)]">
+        <div className="dashboard-content p-4 sm:p-6 space-y-4 sm:space-y-6 auto-hide-scrollbar scroll-smooth">
           {notice && (
             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-bounce">
               <div className={`glass-fade-in inline-flex items-center gap-3 rounded-2xl px-6 py-4 text-sm font-semibold shadow-2xl backdrop-blur-xl ${
@@ -565,7 +565,7 @@ export default function DashboardPage() {
                 <Logo size="xl" className="drop-shadow-2xl relative z-10" />
               </div>
               <div className="space-y-2">
-                <h1 className={`text-3xl sm:text-4xl font-bold tracking-tight ${
+                <h1 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight ${
                   theme === "light"
                     ? "bg-gradient-to-r from-slate-900 via-blue-800 to-purple-800 bg-clip-text text-transparent"
                     : "bg-gradient-to-r from-gray-100 via-blue-200 to-purple-200 bg-clip-text text-transparent"
@@ -584,9 +584,9 @@ export default function DashboardPage() {
               </div>
             </div>
             
-            <div className="flex items-center gap-6">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-6">
               {/* Enhanced Grid Controls */}
-              <div className={`hidden sm:flex items-center gap-3 px-4 py-2 rounded-xl ${
+              <div className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl ${
                 theme === "light" 
                   ? "bg-white/80 border border-slate-200 shadow-sm backdrop-blur-sm" 
                   : "bg-white/5 border border-white/10 backdrop-blur-sm"
@@ -706,23 +706,23 @@ export default function DashboardPage() {
 
           {/* Enhanced Dashboard Graphs Grid */}
           <div className="fade-in-up">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${
                     theme === "light" 
                       ? "bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-200" 
                       : "bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30"
                   }`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-6 h-6 ${
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 sm:w-6 sm:h-6 ${
                       theme === "light" ? "text-blue-600" : "text-blue-400"
                     }`}>
                       <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                     </svg>
                   </div>
                   <div>
-                    <h2 className={`text-2xl font-bold ${theme === "light" ? "text-slate-900" : "text-gray-100"}`}>Visualizations</h2>
-                    <p className={`text-sm ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
+                    <h2 className={`text-xl sm:text-2xl font-bold ${theme === "light" ? "text-slate-900" : "text-gray-100"}`}>Visualizations</h2>
+                    <p className={`text-xs sm:text-sm ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
                       {graphs.length} pinned chart{graphs.length !== 1 ? 's' : ''}
                     </p>
                   </div>
@@ -968,20 +968,20 @@ export default function DashboardPage() {
                   const graphId = graph.graph_id || `fallback-${index}`;
                   
                   return (
-                    <div key={graphId} className="indus-card group hover-lift animated-bg h-[650px] flex flex-col relative overflow-hidden" style={{ animationDelay: `${index * 0.1}s` }}>
+                    <div key={graphId} className="indus-card group hover-lift animated-bg h-[500px] sm:h-[550px] md:h-[600px] lg:h-[650px] xl:h-[700px] flex flex-col relative overflow-hidden" style={{ animationDelay: `${index * 0.1}s` }}>
                       {/* Background gradient overlay */}
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                       
                       {/* Header - Fixed height */}
-                      <div className="relative flex-shrink-0 p-6 pb-4 z-10">
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex items-center gap-4">
+                      <div className="relative flex-shrink-0 p-4 sm:p-6 pb-3 sm:pb-4 z-10">
+                        <div className="flex items-center justify-between mb-4 sm:mb-6">
+                          <div className="flex items-center gap-2 sm:gap-4">
                             <div className="relative group/icon">
                               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl blur-sm group-hover/icon:blur-md transition-all duration-300"></div>
-                              <div className={`relative w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border ${
+                              <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border ${
                                 theme === "light" ? "border-blue-600/40" : "border-blue-500/30"
                               } group-hover/icon:scale-110 transition-transform duration-200`}>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-6 h-6 ${
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 sm:w-6 sm:h-6 ${
                                   theme === "light" ? "text-blue-700" : "text-blue-400"
                                 } group-hover/icon:rotate-12 transition-transform duration-200`}>
                                   <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
@@ -989,12 +989,12 @@ export default function DashboardPage() {
                               </div>
                             </div>
                             <div className="min-w-0 flex-1 space-y-1">
-                              <h3 className={`text-lg font-bold group-hover:scale-105 transition-transform duration-200 truncate ${
+                              <h3 className={`text-base sm:text-lg font-bold group-hover:scale-105 transition-transform duration-200 truncate ${
                                 theme === "light" ? "text-slate-900" : "text-gray-100"
                               }`}>
                                 {graph.title || `Chart ${index + 1}`}
                               </h3>
-                              <p className={`text-sm font-medium truncate ${
+                              <p className={`text-xs sm:text-sm font-medium truncate ${
                                 theme === "light" ? "text-slate-600" : "text-slate-400"
                               }`}>
                                 {(graph as any).graph_type || 'Visualization'}
@@ -1014,7 +1014,7 @@ export default function DashboardPage() {
                       </div>
                     
                     {/* Content Area - Flexible height */}
-                    <div className="relative flex-1 px-6 pb-4 z-10">
+                    <div className="relative flex-1 px-4 sm:px-6 pb-3 sm:pb-4 z-10">
                       <div className={`h-full rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:shadow-xl ${
                         theme === "light" 
                           ? "bg-white/90 border border-slate-200 shadow-sm backdrop-blur-sm" 
@@ -1226,26 +1226,26 @@ export default function DashboardPage() {
                   </svg>
                 </div>
               </div>
-              <h3 className={`text-2xl font-bold mb-4 ${
+              <h3 className={`text-xl sm:text-2xl font-bold mb-3 sm:mb-4 ${
                 theme === "light" ? "text-slate-900" : "text-white"
               }`}>Welcome to AI Analytics</h3>
-              <p className={`text-sm max-w-sm leading-relaxed mb-8 ${
+              <p className={`text-xs sm:text-sm max-w-sm leading-relaxed mb-6 sm:mb-8 ${
                 theme === "light" ? "text-slate-600" : "text-slate-400"
               }`}>
                 Ask questions about your data and get instant insights with AI-powered analysis.
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
-                <span className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 ${
+                <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 hover:scale-105 ${
                   theme === "light"
                     ? "bg-blue-50 text-blue-700 border border-blue-200"
                     : "bg-white/10 text-slate-300 border border-white/20"
                 }`}>Data Analysis</span>
-                <span className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 ${
+                <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 hover:scale-105 ${
                   theme === "light"
                     ? "bg-purple-50 text-purple-700 border border-purple-200"
                     : "bg-white/10 text-slate-300 border border-white/20"
                 }`}>Charts & Graphs</span>
-                <span className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 ${
+                <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 hover:scale-105 ${
                   theme === "light"
                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                     : "bg-white/10 text-slate-300 border border-white/20"
@@ -1255,7 +1255,7 @@ export default function DashboardPage() {
           ) : (
             chat.map((item, i) => (
               <div key={i} className={`flex ${item.role === "user" ? "justify-end" : "justify-start"} group`}>
-                <div className={`max-w-[80%] ${item.role === "user" ? "ml-12" : "mr-12"}`}>
+                <div className={`max-w-[90%] sm:max-w-[80%] ${item.role === "user" ? "ml-2 sm:ml-12" : "mr-2 sm:mr-12"}`}>
                   {/* User Message */}
                   {item.role === "user" ? (
                     <div className="relative group">
@@ -1264,32 +1264,32 @@ export default function DashboardPage() {
                           ? "bg-gradient-to-br from-blue-500/30 to-purple-500/30"
                           : "bg-gradient-to-br from-blue-600/20 to-purple-600/20"
                       }`}></div>
-                      <div className={`relative rounded-2xl px-6 py-4 shadow-xl max-w-[85%] hover:shadow-2xl transition-all duration-200 hover:scale-[1.02] ${
+                      <div className={`relative rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 shadow-xl max-w-full hover:shadow-2xl transition-all duration-200 hover:scale-[1.02] ${
                         theme === "light"
                           ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white border-2 border-blue-500/20"
                           : "bg-gradient-to-br from-blue-600 to-purple-600 text-white"
                       }`}>
-                        <div className="text-[15px] leading-relaxed font-medium">
+                        <div className="text-sm sm:text-[15px] leading-relaxed font-medium">
                           <HTMLRender html={item.text || ""} isTextContent={true} />
                         </div>
                       </div>
                     </div>
                   ) : (
                     /* Assistant Message */
-                    <div className="space-y-3 max-w-[95%]">
+                    <div className="space-y-3 max-w-full">
                       {/* Message Content - Show text only if there are no graphs */}
                       {item.text && item.text.trim() && (!item.graphs || item.graphs.length === 0) && (
                         <div className="relative group">
-                          <div className={`absolute inset-0 rounded-2xl backdrop-blur-md shadow-xl transition-all duration-200 ${
+                          <div className={`absolute inset-0 rounded-xl sm:rounded-2xl backdrop-blur-md shadow-xl transition-all duration-200 ${
                             theme === "light"
                               ? "bg-gradient-to-br from-slate-50/90 to-white/90 border-2 border-slate-200"
                               : "bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/50"
                           }`}>
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-2xl group-hover:from-blue-500/10 group-hover:to-purple-500/10 transition-all duration-300"></div>
                           </div>
-                          <div className="relative px-6 py-4">
+                          <div className="relative px-4 sm:px-6 py-3 sm:py-4">
                             <div className="flex items-start justify-between gap-3">
-                              <div className={`text-[15px] leading-relaxed flex-1 font-normal ${
+                              <div className={`text-sm sm:text-[15px] leading-relaxed flex-1 font-normal ${
                                 theme === "light" ? "text-slate-900" : "text-gray-100"
                               }`}>
                                 <HTMLRender html={item.text} isTextContent={true} />
@@ -1510,13 +1510,13 @@ export default function DashboardPage() {
         </div>
 
         {/* Enhanced Chat Input */}
-        <div className={`flex-shrink-0 p-6 border-t backdrop-blur-md ${
+        <div className={`flex-shrink-0 p-3 sm:p-4 lg:p-6 border-t backdrop-blur-md ${
           theme === "light"
             ? "border-slate-200 bg-gradient-to-b from-white/95 to-slate-50/95 shadow-lg"
             : "border-slate-700/50 bg-gradient-to-b from-slate-900/90 to-slate-950/95"
         }`}>
-          <form onSubmit={onAsk} className="space-y-4">
-            <div className="flex items-end gap-4">
+          <form onSubmit={onAsk} className="space-y-3 sm:space-y-4">
+            <div className="flex items-end gap-3 sm:gap-4">
               <div className="flex-1 relative group">
                 {/* Input background glow */}
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
@@ -1534,7 +1534,7 @@ export default function DashboardPage() {
                     }
                   }}
                   placeholder="Ask a question about your data..."
-                  className={`relative w-full px-6 py-4 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 pr-14 text-[15px] resize-none min-h-[56px] max-h-32 group-hover:border-blue-500/30 no-scrollbar font-normal ${
+                  className={`relative w-full px-4 sm:px-5 lg:px-6 py-3 sm:py-4 border rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 pr-12 sm:pr-14 text-sm sm:text-[15px] resize-none min-h-[48px] sm:min-h-[56px] max-h-32 group-hover:border-blue-500/30 no-scrollbar font-normal ${
                     theme === "light"
                       ? "bg-white/95 border-2 border-slate-300 text-slate-900 placeholder-slate-500 hover:border-blue-500 shadow-sm backdrop-blur-sm"
                       : "bg-slate-800/80 border-slate-700/60 text-gray-100 placeholder-slate-400 hover:bg-slate-800/90 backdrop-blur-sm"
@@ -1553,8 +1553,8 @@ export default function DashboardPage() {
                 />
                 
                 {/* Search icon */}
-                <div className="absolute right-5 bottom-5 group-hover:scale-110 transition-transform duration-200">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 group-hover:text-blue-600 transition-colors duration-200 ${
+                <div className="absolute right-4 sm:right-5 bottom-4 sm:bottom-5 group-hover:scale-110 transition-transform duration-200">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 sm:w-5 sm:h-5 group-hover:text-blue-600 transition-colors duration-200 ${
                     theme === "light" ? "text-slate-500" : "text-slate-500"
                   }`}>
                     <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
@@ -1565,7 +1565,7 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={!question.trim() || isAwaitingAnswer}
-                className="relative inline-flex items-center justify-center w-[56px] h-[56px] rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 disabled:opacity-40 disabled:cursor-not-allowed hover:from-blue-500 hover:to-purple-500 transition-all duration-200 shadow-lg shadow-blue-500/20 pressable hover-scale group"
+                className="relative inline-flex items-center justify-center w-[48px] h-[48px] sm:w-[56px] sm:h-[56px] rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 disabled:opacity-40 disabled:cursor-not-allowed hover:from-blue-500 hover:to-purple-500 transition-all duration-200 shadow-lg shadow-blue-500/20 pressable hover-scale group"
               >
                 {/* Button glow effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

@@ -10,11 +10,6 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const backend = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://3.111.133.92:8010").replace(/\/$/, "");
     
-    // Don't apply rewrites if NEXT_PUBLIC_API_URL is not set (client-side should use relative paths)
-    if (!process.env.NEXT_PUBLIC_API_URL && !process.env.BACKEND_URL) {
-      return [];
-    }
-    
     return [
       // Auth
       { source: "/auth/:path*", destination: `${backend}/api/auth/:path*` },
